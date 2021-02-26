@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>source/strings-C.json</file>
+        <file>source/strings-E.json</file>
+        <file>source/ttf/Aldrich-Regular.ttf</file>
+        <file>source/ttf/BalooBhaina-Regular.ttf</file>
+        <file>source/ttf/Branch-zystoo.otf</file>
+        <file>source/ttf/BRUX.otf</file>
+        <file>source/ttf/Times_New_Roman.ttf</file>
+    </qresource>
+</RCC>

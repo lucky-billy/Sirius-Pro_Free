@@ -1,0 +1,18 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/Company_Logo.bmp</file>
+        <file>images/Folder.png</file>
+        <file>images/Gear.png</file>
+        <file>images/Pencil.png</file>
+        <file>images/Chinese.png</file>
+        <file>images/English.png</file>
+        <file>images/Export.png</file>
+        <file>images/Screenshot.png</file>
+        <file>images/Save.png</file>
+        <file>images/Clear.png</file>
+        <file>images/Delete.png</file>
+        <file>images/Splice.png</file>
+        <file>images/ExportPDF.png</file>
+        <file>images/Dot.png</file>
+    </qresource>
+</RCC>
