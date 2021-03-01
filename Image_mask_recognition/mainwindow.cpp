@@ -3848,7 +3848,7 @@ void MainWindow::updatePSFPlot()
 
 void MainWindow::drawMask()
 {
-    if ( GlobalValue::com_tp == 1 )
+    if ( GlobalValue::com_tp == 1 || !isSirius )
     {
         if ( m_manualMask.empty() )
         {
