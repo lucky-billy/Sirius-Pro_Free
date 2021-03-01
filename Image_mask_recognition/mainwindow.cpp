@@ -256,6 +256,19 @@ void MainWindow::initView()
         loadOneAsc();
     });
 
+    connect(ui->phaseCalc_inverse, &QAbstractButton::clicked, [&](){
+        if( !m_calc_base.empty() ) {
+            m_phase = BaseFunc::calculator_rev(m_calc_base);
+            m_calc_base = m_phase.clone();
+
+            isSirius = false;
+            startCalculation();
+        } else {
+            GlobalFun::showMessageBox(3, "Please load file first !");
+            return;
+        }
+    });
+
     connect(ui->phaseCalc_add, &QAbstractButton::clicked, [&](){
         if( !m_calc_base.empty() ) {
             calc_type = 2;
@@ -279,8 +292,8 @@ void MainWindow::initView()
     connect(ui->phaseCalc_multiply, &QAbstractButton::clicked, [&](){
         if( !m_calc_base.empty() ) {
             float scaleNum = ui->multiplicand->text().toFloat();
-            m_phase = BaseFunc::calculator_mul(m_calc_base,scaleNum);
-            m_calc_base = m_phase;
+            m_phase = BaseFunc::calculator_mul(m_calc_base, scaleNum);
+            m_calc_base = m_phase.clone();
 
             isSirius = false;
             startCalculation();
@@ -296,19 +309,6 @@ void MainWindow::initView()
             m_phase = BaseFunc::calculator_rotate(m_calc_base, m_mask, angle);
             m_phase.setTo(nan(""), m_phase == 0);
             m_calc_base = m_phase.clone();
-
-            isSirius = false;
-            startCalculation();
-        } else {
-            GlobalFun::showMessageBox(3, "Please load file first !");
-            return;
-        }
-    });
-
-    connect(ui->phaseCalc_inverse, &QAbstractButton::clicked, [&](){
-        if( !m_calc_base.empty() ) {
-            m_phase = BaseFunc::calculator_rev(m_calc_base);
-            m_calc_base = m_phase;
 
             isSirius = false;
             startCalculation();
@@ -1845,16 +1845,14 @@ void MainWindow::loadASC(QString path)
     int nbuckets = list.at(4).toInt();
     int intensrange = list.at(5).toInt();
 
-    switch ( calc_type ) {
-    case 2:
-    case 3:
-        if ( m_calc_base.cols!=intenswidth || m_calc_base.rows!=intensheight ) {
-            GlobalFun::showMessageBox(3, "Size different !");
+    // 相位计算 加、减（需判断大小是否一致）
+    if ( calc_type == 2 || calc_type == 3 ) {
+        if ( m_calc_base.cols != intenswidth || m_calc_base.rows != intensheight ) {
+            GlobalFun::showMessageBox(3, "Different mask sizes !");
             calc_type = 7;
             file.close();
             return ;
         }
-    default:break;
     }
 
     line = in.readLine();   // line4
@@ -2834,6 +2832,9 @@ void MainWindow::startCalculation()
             input.mask = getMask(input.oriPhase.at(0));
         }
     }
+
+    // 相位计算中保存掩膜
+    m_mask = input.mask.clone();
 
     // algorithm process
     m_algorithm->process(input);
