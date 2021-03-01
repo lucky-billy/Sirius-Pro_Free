@@ -306,6 +306,15 @@ void MainWindow::initView()
     connect(ui->phaseCalc_rotate, &QAbstractButton::clicked, [&](){
         if( !m_calc_base.empty() ) {
             float angle = ui->rotate_degree->text().toFloat();
+
+            if ( m_mask.empty() ) {
+                GlobalFun::showMessageBox(3, "The mask is empty !");
+                return;
+            } else if ( m_mask.rows != m_calc_base.rows || m_mask.cols != m_calc_base.cols ) {
+                GlobalFun::showMessageBox(3, "The mask size is inconsistent with the image size !");
+                return;
+            }
+
             m_phase = BaseFunc::calculator_rotate(m_calc_base, m_mask, angle);
             m_phase.setTo(nan(""), m_phase == 0);
             m_calc_base = m_phase.clone();
@@ -2833,9 +2842,6 @@ void MainWindow::startCalculation()
         }
     }
 
-    // 相位计算中保存掩膜
-    m_mask = input.mask.clone();
-
     // algorithm process
     m_algorithm->process(input);
     m_log.write(GlobalFun::getCurrentTime(2) + " - Algorithm process finished");
@@ -2846,6 +2852,10 @@ void MainWindow::startCalculation()
     }
 
     m_log.write(GlobalFun::getCurrentTime(2) + " - Calculation finished");
+
+    // 相位计算中保存掩膜
+    m_mask = input.mask.clone();
+    calc_type = 7;
 
     // fill data
     fillData();
