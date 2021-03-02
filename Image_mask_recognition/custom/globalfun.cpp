@@ -201,6 +201,20 @@ QString GlobalFun::getTTF(int id)
     return ttf;
 }
 
+QString GlobalFun::BCryptographicHash(QString str)
+{
+    std::wstring wString = str.toStdWString();
+    QByteArray key = "QY_billy";
+
+    for ( int i = 0; i < (int)wString.size(); ++i )
+    {
+        int index = i % key.size();
+        wString[i] = wString[i] ^ key.at(index);
+    }
+
+    return QString::fromStdWString(wString).toUtf8();
+}
+
 //------------------------------------------------------------------------------
 
 void GlobalFun::changeColorToRed(QImage& image)

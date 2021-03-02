@@ -117,6 +117,13 @@ void Customer_engineer_dialog::initView()
 
 void Customer_engineer_dialog::on_ok_btn_clicked()
 {
+    if ( GlobalValue::gra_def_size != ui->def_size_box->value() ) {
+        if ( GlobalValue::gra_pixel == 0 ) {
+            GlobalFun::showMessageBox(3, "The element size cannot be modified \nwhen the pixel calibration value is 0 !");
+            return;
+        }
+    }
+
     switch ( ui->psi_box->currentIndex() )
     {
     case 0: GlobalValue::par_psi = 1; break;

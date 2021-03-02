@@ -76,6 +76,9 @@ public:
     // 获取字体
     static QString getTTF(int id);
 
+    // 加密
+    static QString BCryptographicHash(QString str);
+
     //------------------------------------------------------------------------------
 
     // 改变图像中部分点的颜色
