@@ -348,6 +348,10 @@ void MainWindow::initGraphicsScene()
     m_scene->connectLoadPushButton(ui->loadBtn);
     m_scene->connectChangePushButton(ui->changeBtn);
     m_scene->initStatus();
+
+    connect(m_scene, &BQGraphicsScene::changeMode, [&](){
+        ui->mode->setText( GlobalValue::com_tp == 1 ? GlobalString::graphics_manual : GlobalString::graphics_auto );
+    });
 }
 
 //******************************************************************************************************************
@@ -735,6 +739,10 @@ void MainWindow::updateView(bool state)
     ui->phaseCalc_multiply->setGeometry(140, 60 + phase_height*3, 90, 30);
     ui->rotate_degree->setGeometry(20, 90 + phase_height*4, 90, 30);
     ui->phaseCalc_rotate->setGeometry(140, 90 + phase_height*4, 90, 30);
+
+    // psd label
+    label_x->setGeometry(psd_chart->x() + 10, ui->psdXLineChart->y() + ui->psdXLineChart->height() - 50, 80, 20);
+    label_y->setGeometry(psd_chart->x() + 10, ui->psdXLineChart->y() + ui->psdXLineChart->height() - 30, 80, 20);
 }
 
 void MainWindow::modifyScale()
@@ -2429,11 +2437,30 @@ void MainWindow::createLineChart()
     psd_ySeries->setColor(Qt::green);
 
     psd_chart = new QChart();
-    psd_chart->legend()->setAlignment(Qt::AlignBottom);
+
+    axisXX = new QCategoryAxis();
+    axisYY = new QCategoryAxis();
+
+    psdShowEmpty();
+
+    axisXX->setLabelsPosition(QCategoryAxis::AxisLabelsPositionOnValue);
+    axisYY->setLabelsPosition(QCategoryAxis::AxisLabelsPositionOnValue);
+
+    psd_chart->addAxis(axisXX,Qt::AlignBottom);
+    psd_chart->addAxis(axisYY,Qt::AlignLeft);
     psd_chart->addSeries(psd_xSeries);
     psd_chart->addSeries(psd_ySeries);
-    psd_chart->createDefaultAxes();
+    psd_chart->legend()->setAlignment(Qt::AlignBottom);
+
+    psd_xSeries->attachAxis(axisXX);
+    psd_xSeries->attachAxis(axisYY);
+    psd_ySeries->attachAxis(axisXX);
+    psd_ySeries->attachAxis(axisYY);
+
     ui->psdXLineChart->setChart(psd_chart);
+
+    label_x = new QLabel("X: Log10", ui->psdXLineChart);
+    label_y = new QLabel("Y: Log10", ui->psdXLineChart);
 }
 
 void MainWindow::createPSFView()
@@ -3728,14 +3755,28 @@ void MainWindow::updateZernikeData(float dec, int div, bool isOK)
 
 void MainWindow::updateLineChart(bool isOK)
 {
+    float decimal = 5 / pow(10, 1+1);
+    int divisor = pow(10, 1);
+
+    // init
     xSeries->clear();
     ySeries->clear();
     psd_xSeries->clear();
     psd_ySeries->clear();
+    psd_chart->removeAxis(axisXX);
+    psd_chart->removeAxis(axisYY);
 
-    if ( isOK ) {
-        if ( m_algorithm->xSlice.empty() || m_algorithm->ySlice.empty() || m_algorithm->PSD_X.empty() || m_algorithm->PSD_Y.empty() )
-        {
+    for ( int i = 0; i < axisXX->categoriesLabels().size(); )
+    {
+        axisXX->remove(axisXX->categoriesLabels().at(i));
+        axisYY->remove(axisYY->categoriesLabels().at(i));
+    }
+
+    if ( !isOK ) {
+        psdShowEmpty();
+    } else {
+        // line chart
+        if ( m_algorithm->xSlice.empty() || m_algorithm->ySlice.empty() ) {
             return;
         }
 
@@ -3759,14 +3800,133 @@ void MainWindow::updateLineChart(bool isOK)
         }
         ySeries->replace(vec);
 
+        //---------------------------------------------
+
+        if ( m_algorithm->PSD_X.empty() || m_algorithm->PSD_Y.empty() || m_algorithm->PSD_X.cols < 2 || m_algorithm->PSD_Y.cols < 2 ) {
+            return;
+        }
+
+        // 第一列代表数值，第二列代表坐标
+        cv::Mat x_value = m_algorithm->PSD_X.col(0);
+        cv::Mat x_axis = m_algorithm->PSD_X.col(1);
+        cv::Mat y_value = m_algorithm->PSD_Y.col(0);
+        cv::Mat y_axis = m_algorithm->PSD_Y.col(1);
+
+        double x_min = 9999;
+        double x_max = -9999;
+        double y_min = 9999;
+        double y_max = -9999;
+
+        // 横轴 两个Mat 求最值
+        //        minMaxLoc(x_axis, &x_min, &x_max, NULL, NULL);
+        //        minMaxLoc(y_axis, &y_min, &y_max, NULL, NULL);
+
+        for ( int i = 0; i < x_axis.rows; ++i )
+        {
+            float value = x_axis.at<float>(i, 0);
+            if ( !isinf(value) && !isnan(value) ) {
+                if ( value < x_min ) {
+                    x_min = value;
+                }
+                if ( value > x_max ) {
+                    x_max = value;
+                }
+            }
+        }
+
+        for ( int i = 0; i < y_axis.rows; ++i )
+        {
+            float value = y_axis.at<float>(i, 0);
+            if ( !isinf(value) && !isnan(value) ) {
+                if ( value < y_min ) {
+                    y_min = value;
+                }
+                if ( value > y_max ) {
+                    y_max = value;
+                }
+            }
+        }
+
+        double min = x_min < y_min ? x_min : y_min;
+        double max = x_max > y_max ? x_max : y_max;
+
+        axisXX->setRange(min, max);
+        axisXX->setStartValue(min);
+        float det = (max - min)/5.0;
+
+        for ( int i = 0; i < 6; ++i )
+        {
+            float dir = floor((min + i * det + decimal) * divisor) / divisor;
+            if ( dir >= 0 ) {
+                axisXX->append(QString("1E+%1").arg(dir), dir);
+            } else {
+                axisXX->append(QString("1E%1").arg(dir), dir);
+            }
+        }
+
+        //------------------------------------------------
+
+        x_min = 9999;
+        x_max = -9999;
+        y_min = 9999;
+        y_max = -9999;
+
+        // 纵轴 两个Mat 求最值
+        //        minMaxLoc(x_value, &x_min, &x_max, NULL, NULL);
+        //        minMaxLoc(y_value, &y_min, &y_max, NULL, NULL);
+
+        for ( int i = 0; i < x_value.rows; ++i )
+        {
+            float value = x_value.at<float>(i, 0);
+            if ( !isinf(value) && !isnan(value) ) {
+                if ( value < x_min ) {
+                    x_min = value;
+                }
+                if ( value > x_max ) {
+                    x_max = value;
+                }
+            }
+        }
+
+        for ( int i = 0; i < y_value.rows; ++i )
+        {
+            float value = y_value.at<float>(i, 0);
+            if ( !isinf(value) && !isnan(value) ) {
+                if ( value < y_min ) {
+                    y_min = value;
+                }
+                if ( value > y_max ) {
+                    y_max = value;
+                }
+            }
+        }
+
+        min = x_min < y_min ? x_min : y_min;
+        max = x_max > y_max ? x_max : y_max;
+
+        axisYY->setRange(min, max);
+        axisYY->setStartValue(min);
+        det = (max - min)/5.0;
+
+        for ( int i = 0; i < 6; ++i )
+        {
+            float dir = floor((min + i * det + decimal) * divisor) / divisor;
+            if ( dir >= 0 ) {
+                axisYY->append(QString("1E+%1").arg(dir), dir);
+            } else {
+                axisYY->append(QString("1E%1").arg(dir), dir);
+            }
+        }
+
+        //------------------------------------------------
+
         vec.clear();
         for ( int i = 0; i != m_algorithm->PSD_X.rows; ++i )
         {
             float y = m_algorithm->PSD_X.at<float>(i, 0);
             float x = m_algorithm->PSD_X.at<float>(i, 1);
             if ( !isinf(y) && !isnan(y) && !isinf(x) && !isnan(x)) {
-
-                vec.append(QPointF(x,y));
+                vec.append(QPointF(x, y));
             }
         }
         psd_xSeries->replace(vec);
@@ -3777,7 +3937,6 @@ void MainWindow::updateLineChart(bool isOK)
             float y = m_algorithm->PSD_Y.at<float>(i, 0);
             float x = m_algorithm->PSD_Y.at<float>(i, 1);
             if ( !isinf(y) && !isnan(y) && !isinf(x) && !isnan(x)) {
-
                 vec.append(QPointF(x,y));
             }
         }
@@ -3801,9 +3960,17 @@ void MainWindow::updateLineChart(bool isOK)
         psd_chart->removeSeries(ser);
     }
 
+    psd_chart->addAxis(axisXX, Qt::AlignBottom);
+    psd_chart->addAxis(axisYY, Qt::AlignLeft);
+    axisXX->setLabelsPosition(QCategoryAxis::AxisLabelsPositionOnValue);
+    axisYY->setLabelsPosition(QCategoryAxis::AxisLabelsPositionOnValue);
     psd_chart->addSeries(psd_xSeries);
     psd_chart->addSeries(psd_ySeries);
-    psd_chart->createDefaultAxes();
+
+    psd_xSeries->attachAxis(axisXX);
+    psd_xSeries->attachAxis(axisYY);
+    psd_ySeries->attachAxis(axisXX);
+    psd_ySeries->attachAxis(axisYY);
 
     ui->psdXLineChart->setChart(psd_chart);
 }
@@ -3941,6 +4108,26 @@ void MainWindow::modifyTableHead()
             data << linelist.join(",") + "\n";
         }
         file.close();
+    }
+}
+
+void MainWindow::psdShowEmpty()
+{
+    axisXX->setMin(0);
+    axisXX->setMax(1);
+    axisXX->setStartValue(0);
+    axisYY->setMin(0);
+    axisYY->setMax(1);
+    axisYY->setStartValue(0);
+
+    for ( int i = 0; i < 6; ++i )
+    {
+        axisXX->append(QString("1E-%1").arg(i), i*0.2);
+    }
+
+    for ( int i = 0; i < 6; ++i )
+    {
+        axisYY->append(QString("1E-%1").arg(i), i*0.2);
     }
 }
 

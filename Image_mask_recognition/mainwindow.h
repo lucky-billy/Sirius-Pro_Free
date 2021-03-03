@@ -84,6 +84,7 @@ public:
     void updatePSFPlot();                       // 更新 PSF 图形
     void drawMask();                            // 画掩膜
     void modifyTableHead();                     // 修改日志表头
+    void psdShowEmpty();                        // PSD折线图初始状态
 
 protected:
     // [6] 事件
@@ -114,6 +115,10 @@ private:
 
     QLineSeries *psd_xSeries;                   // psd 折线图x切片数据
     QLineSeries *psd_ySeries;                   // psd 折线图y切片数据
+    QCategoryAxis *axisXX;                      // psd x坐标轴
+    QCategoryAxis *axisYY;                      // psd y坐标轴
+    QLabel *label_x;                            // x:log10
+    QLabel *label_y;                            // y:log10
     QChart *psd_chart;                          // psd 折线图表
 
     QWidget *psf_container;                     // PSF 曲面容器

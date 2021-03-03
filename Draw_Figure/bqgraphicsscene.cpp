@@ -376,9 +376,11 @@ void BQGraphicsScene::connectSavePushButton(QPushButton *btn)
             if ( GlobalValue::file_save_path != "null" ) { path = GlobalValue::file_save_path + "/" + path; }
 
             QString file = QFileDialog::getSaveFileName(nullptr, GlobalString::action_save, path, "Mask files (*.msk)");
-            saveItemToConfig(file);
 
-            GlobalFun::showMessageBox(2, "Save MSK file successfully !");
+            if ( file != "" ) {
+                saveItemToConfig(file);
+                GlobalFun::showMessageBox(2, "Save MSK file successfully !");
+            }
         }
     });
 }
@@ -391,7 +393,10 @@ void BQGraphicsScene::connectLoadPushButton(QPushButton *btn)
         if ( GlobalValue::file_load_path != "null" ) { path = GlobalValue::file_load_path; }
 
         QString file = QFileDialog::getOpenFileName(nullptr, GlobalString::action_load, path, "Mask files (*.msk)");
-        loadItemToScene(file);
+
+        if ( file != "" ) {
+            loadItemToScene(file);
+        }
     });
 }
 
