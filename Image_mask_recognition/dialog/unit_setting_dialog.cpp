@@ -17,11 +17,9 @@ Unit_setting_dialog::Unit_setting_dialog(QString title, QString name, int type, 
         ui->doubleSpinBox->setPrefix(QString("1%1 = ").arg(ui->comboBox->currentText()));
 
         if ( index == 0 || index == 1 ) {
-            ui->doubleSpinBox->setEnabled(true);
             ui->doubleSpinBox->setDecimals(2);
             ui->doubleSpinBox->setValue( index == 0 ? m_value : m_value/2 );
         } else {
-            ui->doubleSpinBox->setEnabled(false);
             ui->doubleSpinBox->setDecimals(0);
             ui->doubleSpinBox->setValue( index == 2 ? 1 : ( index == 3 ? 1000 : 1000000 ) );
         }

@@ -90,8 +90,8 @@ void BPdfCreater::drawWaveAndUnit()
 {
     QString unit = "";
     switch (GlobalValue::com_unit) {
-    case 0: unit = QStringLiteral("λ") + "@" + QString::number(GlobalValue::com_value) + " nm"; break;
-    case 1: unit = QStringLiteral("fr") + "@" + QString::number(GlobalValue::com_value) + " nm"; break;
+    case 0: unit = QStringLiteral("λ") + "@" + QString::number(GlobalValue::par_r_w) + " nm"; break;
+    case 1: unit = QStringLiteral("fr") + "@" + QString::number(GlobalValue::par_r_w) + " nm"; break;
     case 2: unit = QStringLiteral("nm"); break;
     case 3: unit = QStringLiteral("μm"); break;
     case 4: unit = QStringLiteral("mm"); break;

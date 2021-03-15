@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>260</width>
-    <height>600</height>
+    <height>630</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <property name="geometry">
     <rect>
      <x>90</x>
-     <y>570</y>
+     <y>600</y>
      <width>80</width>
      <height>20</height>
     </rect>
@@ -32,7 +32,7 @@
      <x>10</x>
      <y>0</y>
      <width>240</width>
-     <height>380</height>
+     <height>410</height>
     </rect>
    </property>
    <property name="title">
@@ -249,7 +249,7 @@
     <property name="geometry">
      <rect>
       <x>120</x>
-      <y>260</y>
+      <y>290</y>
       <width>80</width>
       <height>20</height>
      </rect>
@@ -296,11 +296,11 @@
      <string>Test wavelength:</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_9">
+   <widget class="QLabel" name="label_10">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>260</y>
+      <y>290</y>
       <width>100</width>
       <height>20</height>
      </rect>
@@ -351,11 +351,11 @@
      <double>0.100000000000000</double>
     </property>
    </widget>
-   <widget class="QLabel" name="label_10">
+   <widget class="QLabel" name="label_11">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>290</y>
+      <y>320</y>
       <width>100</width>
       <height>20</height>
      </rect>
@@ -368,7 +368,7 @@
     <property name="geometry">
      <rect>
       <x>120</x>
-      <y>320</y>
+      <y>350</y>
       <width>80</width>
       <height>20</height>
      </rect>
@@ -433,7 +433,7 @@
     <property name="geometry">
      <rect>
       <x>120</x>
-      <y>350</y>
+      <y>380</y>
       <width>80</width>
       <height>20</height>
      </rect>
@@ -498,7 +498,7 @@
     <property name="geometry">
      <rect>
       <x>120</x>
-      <y>290</y>
+      <y>320</y>
       <width>80</width>
       <height>20</height>
      </rect>
@@ -524,6 +524,19 @@
      </property>
     </item>
    </widget>
+   <widget class="QLabel" name="label_13">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>380</y>
+      <width>100</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Slope thresh:</string>
+    </property>
+   </widget>
    <widget class="QLabel" name="label_12">
     <property name="geometry">
      <rect>
@@ -534,20 +547,36 @@
      </rect>
     </property>
     <property name="text">
-     <string>Slope thresh:</string>
+     <string>Slope rmSize:</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_11">
+   <widget class="QLabel" name="label_9">
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>320</y>
-      <width>100</width>
+      <y>260</y>
+      <width>110</width>
       <height>20</height>
      </rect>
     </property>
     <property name="text">
-     <string>Slope rmSize:</string>
+     <string>Result wavelength:</string>
+    </property>
+   </widget>
+   <widget class="QDoubleSpinBox" name="r_w_box">
+    <property name="geometry">
+     <rect>
+      <x>120</x>
+      <y>260</y>
+      <width>80</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="maximum">
+     <double>10000.000000000000000</double>
+    </property>
+    <property name="singleStep">
+     <double>0.100000000000000</double>
     </property>
    </widget>
   </widget>
@@ -555,7 +584,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>390</y>
+     <y>420</y>
      <width>240</width>
      <height>170</height>
     </rect>
@@ -563,7 +592,7 @@
    <property name="title">
     <string>Other setting</string>
    </property>
-   <widget class="QLabel" name="label_15">
+   <widget class="QLabel" name="label_16">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -592,7 +621,7 @@
      <number>10000</number>
     </property>
    </widget>
-   <widget class="QLabel" name="label_14">
+   <widget class="QLabel" name="label_15">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -651,7 +680,7 @@
      </property>
     </item>
    </widget>
-   <widget class="QLabel" name="label_13">
+   <widget class="QLabel" name="label_14">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -664,7 +693,7 @@
      <string>Decimal points:</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_16">
+   <widget class="QLabel" name="label_17">
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -677,7 +706,7 @@
      <string>Device name:</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_17">
+   <widget class="QLabel" name="label_18">
     <property name="geometry">
      <rect>
       <x>10</x>

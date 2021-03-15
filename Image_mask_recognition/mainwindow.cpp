@@ -220,8 +220,8 @@ void MainWindow::initView()
     connect(ui->action_Spherical, &QAction::triggered, [&](bool checked){ GlobalValue::zer_sph = checked ? 1 : 0; });
 
     switch (GlobalValue::com_unit) {
-    case 0: ui->action_Company->setText(QStringLiteral("λ@") + QString::number(GlobalValue::com_value)); break;
-    case 1: ui->action_Company->setText(QStringLiteral("fr@") + QString::number(GlobalValue::com_value/2)); break;
+    case 0: ui->action_Company->setText(QStringLiteral("λ@") + QString::number(GlobalValue::par_r_w)); break;
+    case 1: ui->action_Company->setText(QStringLiteral("fr@") + QString::number(GlobalValue::par_r_w)); break;
     case 2: ui->action_Company->setText(QStringLiteral("nm")); break;
     case 3: ui->action_Company->setText(QStringLiteral("μm")); break;
     case 4: ui->action_Company->setText(QStringLiteral("mm")); break;
@@ -400,7 +400,6 @@ void MainWindow::createDefaultConfig()
         settings.setValue(GlobalFun::BCryptographicHash("common/type"), 1);                         // 掩膜方式 1-手动 2-自动
         settings.setValue(GlobalFun::BCryptographicHash("common/pic_scale"), 1);                    // 图片缩放比例
         settings.setValue(GlobalFun::BCryptographicHash("common/unit"), 0);                         // 单位 0-λ 1-fr 2-nm 3-μm 4-mm
-        settings.setValue(GlobalFun::BCryptographicHash("common/value"), 632.8);                    // 1个λ对应多少nm
         settings.setValue(GlobalFun::BCryptographicHash("common/decimal"), 3);                      // 小数点位数
         settings.setValue(GlobalFun::BCryptographicHash("common/fontPixelSize"), 12);               // 字体像素大小
         settings.setValue(GlobalFun::BCryptographicHash("common/residuesNumThresh"), 350);          // 残差点个数阈值
@@ -455,6 +454,7 @@ void MainWindow::createDefaultConfig()
         settings.setValue(GlobalFun::BCryptographicHash("parameter/intf_scale_factor"), 0.5);       // 比例因子，内标度系数
         settings.setValue(GlobalFun::BCryptographicHash("parameter/test_wavelength"), 632.8);       // 测试波长
         settings.setValue(GlobalFun::BCryptographicHash("parameter/iso_wavelength"), 546);          // ISO波长
+        settings.setValue(GlobalFun::BCryptographicHash("parameter/result_wavelength"), 632.8);     // 输出波长，1个λ对应多少nm
         settings.setValue(GlobalFun::BCryptographicHash("parameter/highPass_filterCoef"), 0.005);   // 计算高通滤波半径的系数
 
         settings.setValue(GlobalFun::BCryptographicHash("parameter/filter"), 0);                    // 滤波 0-none 1-LOW_PASS 2-HIGH_PASS 3-BAND_PASS 4-BAND_REJECT
@@ -501,7 +501,6 @@ void MainWindow::loadConfig()
     GlobalValue::com_tp = config.value(GlobalFun::BCryptographicHash("common/type")).toInt();
     GlobalValue::com_p_sle = config.value(GlobalFun::BCryptographicHash("common/pic_scale")).toDouble();
     GlobalValue::com_unit = config.value(GlobalFun::BCryptographicHash("common/unit")).toInt();
-    GlobalValue::com_value = config.value(GlobalFun::BCryptographicHash("common/value")).toDouble();
     GlobalValue::com_dcl = config.value(GlobalFun::BCryptographicHash("common/decimal")).toInt();
     GlobalValue::com_fps = config.value(GlobalFun::BCryptographicHash("common/fontPixelSize")).toInt();
     GlobalValue::com_rnt = config.value(GlobalFun::BCryptographicHash("common/residuesNumThresh")).toInt();
@@ -555,6 +554,7 @@ void MainWindow::loadConfig()
     GlobalValue::par_i_s_f = parameter.value(GlobalFun::BCryptographicHash("parameter/intf_scale_factor")).toDouble();
     GlobalValue::par_t_w = parameter.value(GlobalFun::BCryptographicHash("parameter/test_wavelength")).toDouble();
     GlobalValue::par_i_w = parameter.value(GlobalFun::BCryptographicHash("parameter/iso_wavelength")).toDouble();
+    GlobalValue::par_r_w = parameter.value(GlobalFun::BCryptographicHash("parameter/result_wavelength")).toDouble();
     GlobalValue::par_hp_fc = parameter.value(GlobalFun::BCryptographicHash("parameter/highPass_filterCoef")).toDouble();
 
     GlobalValue::par_flt = parameter.value(GlobalFun::BCryptographicHash("parameter/filter")).toInt();
@@ -591,7 +591,6 @@ void MainWindow::saveConfig()
     config.setValue(GlobalFun::BCryptographicHash("common/type"), GlobalValue::com_tp);
     config.setValue(GlobalFun::BCryptographicHash("common/pic_scale"), GlobalValue::com_p_sle);
     config.setValue(GlobalFun::BCryptographicHash("common/unit"), GlobalValue::com_unit);
-    config.setValue(GlobalFun::BCryptographicHash("common/value"), GlobalValue::com_value);
     config.setValue(GlobalFun::BCryptographicHash("common/decimal"), GlobalValue::com_dcl);
     config.setValue(GlobalFun::BCryptographicHash("common/fontPixelSize"), GlobalValue::com_fps);
     config.setValue(GlobalFun::BCryptographicHash("common/residuesNumThresh"), GlobalValue::com_rnt);
@@ -645,6 +644,7 @@ void MainWindow::saveConfig()
     parameter.setValue(GlobalFun::BCryptographicHash("parameter/intf_scale_factor"), GlobalValue::par_i_s_f);
     parameter.setValue(GlobalFun::BCryptographicHash("parameter/test_wavelength"), GlobalValue::par_t_w);
     parameter.setValue(GlobalFun::BCryptographicHash("parameter/iso_wavelength"), GlobalValue::par_i_w);
+    parameter.setValue(GlobalFun::BCryptographicHash("parameter/result_wavelength"), GlobalValue::par_r_w);
     parameter.setValue(GlobalFun::BCryptographicHash("parameter/highPass_filterCoef"), GlobalValue::par_hp_fc);
 
     parameter.setValue(GlobalFun::BCryptographicHash("parameter/filter"), GlobalValue::par_flt);
@@ -2706,22 +2706,32 @@ void MainWindow::createMenuDialog(int type)
             }
         }
 
+        QString unit = "";
+        switch (GlobalValue::com_unit) {
+        case 0: unit = QStringLiteral("λ"); ui->action_Company->setText(unit + "@" + QString::number(GlobalValue::par_r_w)); break;
+        case 1: unit = QStringLiteral("fr"); ui->action_Company->setText(unit + "@" + QString::number(GlobalValue::par_r_w)); break;
+        case 2: unit = QStringLiteral("nm"); ui->action_Company->setText(unit); break;
+        case 3: unit = QStringLiteral("μm"); ui->action_Company->setText(unit); break;
+        case 4: unit = QStringLiteral("mm"); ui->action_Company->setText(unit); break;
+        default: unit = QStringLiteral("nm"); ui->action_Company->setText(unit); break;
+        }
+
         updateGraphItemSize(-1);
     } break;
     case 7: {
     } break;
     case 8: {
         Unit_setting_dialog *dialog = new Unit_setting_dialog(GlobalString::contextMenu_unit, GlobalString::contextMenu_sure,
-                                                              GlobalValue::com_unit, GlobalValue::com_value, this);
+                                                              GlobalValue::com_unit, GlobalValue::par_r_w, this);
 
         connect(dialog, &Unit_setting_dialog::changeValue, [&](int type, double value){
             GlobalValue::com_unit = type;
-            GlobalValue::com_value = value;
+            GlobalValue::par_r_w = value;
 
             QString unit = "";
             switch (GlobalValue::com_unit) {
-            case 0: unit = QStringLiteral("λ"); ui->action_Company->setText(unit + "@" + QString::number(GlobalValue::com_value)); break;
-            case 1: unit = QStringLiteral("fr"); ui->action_Company->setText(unit + "@" + QString::number(GlobalValue::com_value/2)); break;
+            case 0: unit = QStringLiteral("λ"); ui->action_Company->setText(unit + "@" + QString::number(GlobalValue::par_r_w)); break;
+            case 1: unit = QStringLiteral("fr"); ui->action_Company->setText(unit + "@" + QString::number(GlobalValue::par_r_w)); break;
             case 2: unit = QStringLiteral("nm"); ui->action_Company->setText(unit); break;
             case 3: unit = QStringLiteral("μm"); ui->action_Company->setText(unit); break;
             case 4: unit = QStringLiteral("mm"); ui->action_Company->setText(unit); break;
@@ -3063,7 +3073,7 @@ void MainWindow::modifyConfig()
     m_algorithm->configParams.calcResultInputParams.refractiveIndex = GlobalValue::par_ref_index;
     m_algorithm->configParams.calcResultInputParams.testWavelength = GlobalValue::par_t_w;
     m_algorithm->configParams.calcResultInputParams.ISOWavelength = GlobalValue::par_i_w;
-    m_algorithm->configParams.calcResultInputParams.disPlayWavelength = GlobalValue::com_value;
+    m_algorithm->configParams.calcResultInputParams.disPlayWavelength = GlobalValue::par_r_w;
     m_algorithm->configParams.calcResultInputParams.scaleFactorForHoleType = 1;
     m_algorithm->configParams.calcResultInputParams.unitType = (UNIT_TYPE)(GlobalValue::com_unit);
 }

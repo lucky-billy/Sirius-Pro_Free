@@ -865,7 +865,6 @@ QString GlobalString::phase_multiply = "";
 int GlobalValue::com_tp = 0;
 double GlobalValue::com_p_sle = 0;
 int GlobalValue::com_unit = 0;
-double GlobalValue::com_value = 0;
 int GlobalValue::com_dcl = 0;
 int GlobalValue::com_fps = 0;
 int GlobalValue::com_rnt = 0;
@@ -921,6 +920,7 @@ int GlobalValue::par_ztm = 0;
 double GlobalValue::par_i_s_f = 0;
 double GlobalValue::par_t_w = 0;
 double GlobalValue::par_i_w = 0;
+double GlobalValue::par_r_w = 0;
 double GlobalValue::par_hp_fc = 0;
 
 int GlobalValue::par_flt = 0;

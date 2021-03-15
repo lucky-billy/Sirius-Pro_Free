@@ -34,17 +34,18 @@ void Customer_engineer_dialog::initView()
         ui->label_6->setText(QStringLiteral("比例因子:"));
         ui->label_7->setText(QStringLiteral("测试波长:"));
         ui->label_8->setText(QStringLiteral("ISO波长:"));
-        ui->label_9->setText(QStringLiteral("折射率:"));
-        ui->label_10->setText(QStringLiteral("滤波窗尺寸:"));
-        ui->label_11->setText(QStringLiteral("去毛刺像素值:"));
-        ui->label_12->setText(QStringLiteral("去毛刺阈值:"));
+        ui->label_9->setText(QStringLiteral("输出波长:"));
+        ui->label_10->setText(QStringLiteral("折射率:"));
+        ui->label_11->setText(QStringLiteral("滤波窗尺寸:"));
+        ui->label_12->setText(QStringLiteral("去毛刺像素值:"));
+        ui->label_13->setText(QStringLiteral("去毛刺阈值:"));
 
         ui->groupBox_2->setTitle(QStringLiteral("其他设置"));
-        ui->label_13->setText(QStringLiteral("小数点位数:"));
-        ui->label_14->setText(QStringLiteral("图像尺寸:"));
-        ui->label_15->setText(QStringLiteral("残差点个数:"));
-        ui->label_16->setText(QStringLiteral("设备名称:"));
-        ui->label_17->setText(QStringLiteral("设备序列号:"));
+        ui->label_14->setText(QStringLiteral("小数点位数:"));
+        ui->label_15->setText(QStringLiteral("图像尺寸:"));
+        ui->label_16->setText(QStringLiteral("残差点个数:"));
+        ui->label_17->setText(QStringLiteral("设备名称:"));
+        ui->label_18->setText(QStringLiteral("设备序列号:"));
     } else {
         setWindowTitle(QStringLiteral("Setting"));
 
@@ -57,17 +58,18 @@ void Customer_engineer_dialog::initView()
         ui->label_6->setText(QStringLiteral("Scale factor:"));
         ui->label_7->setText(QStringLiteral("Test wavelength:"));
         ui->label_8->setText(QStringLiteral("ISO wavelength:"));
-        ui->label_9->setText(QStringLiteral("Refractive index:"));
-        ui->label_10->setText(QStringLiteral("Filter winSize:"));
-        ui->label_11->setText(QStringLiteral("Slope rmSize:"));
-        ui->label_12->setText(QStringLiteral("Slope thresh:"));
+        ui->label_9->setText(QStringLiteral("Result wavelength:"));
+        ui->label_10->setText(QStringLiteral("Refractive index:"));
+        ui->label_11->setText(QStringLiteral("Filter winSize:"));
+        ui->label_12->setText(QStringLiteral("Slope rmSize:"));
+        ui->label_13->setText(QStringLiteral("Slope thresh:"));
 
         ui->groupBox_2->setTitle(QStringLiteral("Other setting"));
-        ui->label_13->setText(QStringLiteral("Decimal points:"));
-        ui->label_14->setText(QStringLiteral("Graph size:"));
-        ui->label_15->setText(QStringLiteral("Residual points:"));
-        ui->label_16->setText(QStringLiteral("Device name:"));
-        ui->label_17->setText(QStringLiteral("Serial number:"));
+        ui->label_14->setText(QStringLiteral("Decimal points:"));
+        ui->label_15->setText(QStringLiteral("Graph size:"));
+        ui->label_16->setText(QStringLiteral("Residual points:"));
+        ui->label_17->setText(QStringLiteral("Device name:"));
+        ui->label_18->setText(QStringLiteral("Serial number:"));
     }
 
     //------------------------------------------------------------------------------
@@ -101,6 +103,7 @@ void Customer_engineer_dialog::initView()
     ui->i_s_f_box->setValue(GlobalValue::par_i_s_f);
     ui->t_w_box->setValue(GlobalValue::par_t_w);
     ui->i_w_box->setValue(GlobalValue::par_i_w);
+    ui->r_w_box->setValue(GlobalValue::par_r_w);
     ui->r_i_box->setValue(GlobalValue::par_ref_index);
     ui->fws_box->setCurrentText(QString::number(GlobalValue::par_fws));
     ui->srs_box->setCurrentIndex(GlobalValue::par_srs);
@@ -147,6 +150,7 @@ void Customer_engineer_dialog::on_ok_btn_clicked()
     GlobalValue::par_i_s_f = ui->i_s_f_box->value();
     GlobalValue::par_t_w = ui->t_w_box->value();
     GlobalValue::par_i_w = ui->i_w_box->value();
+    GlobalValue::par_r_w = ui->r_w_box->value();
     GlobalValue::par_ref_index = ui->r_i_box->value();
     GlobalValue::par_fws = ui->fws_box->currentText().toInt();
     GlobalValue::par_srs = ui->srs_box->currentIndex();

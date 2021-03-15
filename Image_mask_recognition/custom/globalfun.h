@@ -199,7 +199,6 @@ public:
     static int com_tp;
     static double com_p_sle;
     static int com_unit;
-    static double com_value;
     static int com_dcl;
     static int com_fps;
     static int com_rnt;
@@ -255,6 +254,7 @@ public:
     static double par_i_s_f;
     static double par_t_w;
     static double par_i_w;
+    static double par_r_w;
     static double par_hp_fc;
 
     static int par_flt;
