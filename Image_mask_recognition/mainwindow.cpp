@@ -1628,7 +1628,7 @@ void MainWindow::saveXYZ(QString path)
         mat.copyTo(image(cv::Range(startY, endY), cv::Range(startX, endX)));
     }
 
-    image = image * 4098 / (GlobalValue::par_i_s_f * 1.0);
+    image = image * GlobalValue::par_t_w / 1000;
 
     for ( int r = 0; r < image.rows; ++r )
     {
@@ -1688,8 +1688,6 @@ void MainWindow::loadXYZ(QString path)
     line = in.readLine();   // line8
     list = line.split(" ", QString::SkipEmptyParts);
 
-    double intfscalefactor = list.at(1).toDouble();
-    int obliquityfactor = list.at(4).toInt();
     double camerares = list.at(6).toDouble();
     updateGraphItemSize(camerares);
 
@@ -1722,7 +1720,7 @@ void MainWindow::loadXYZ(QString path)
         QString str = list.at(2);
         float value = str.toDouble();
 
-        *phasedata = str == "No" ? nan("") : value * (intfscalefactor * obliquityfactor) / R;
+        *phasedata = str == "No" ? nan("") : value * 1000 / GlobalValue::par_t_w;
         phasedata++;
     }
 
