@@ -21,6 +21,7 @@ SOURCES += \
     custom/btablewidget.cpp \
     custom/globalfun.cpp \
     custom/gpdf.cpp \
+    dialog/about_us_dialog.cpp \
     dialog/customer_engineer_dialog.cpp \
     dialog/exportreport_dialog.cpp \
     dialog/result_setting_dialog.cpp \
@@ -47,6 +48,7 @@ HEADERS += \
     custom/btablewidget.h \
     custom/globalfun.h \
     custom/gpdf.h \
+    dialog/about_us_dialog.h \
     dialog/customer_engineer_dialog.h \
     dialog/exportreport_dialog.h \
     dialog/result_setting_dialog.h \
@@ -56,6 +58,7 @@ HEADERS += \
     mainwindow.h
 
 FORMS += \
+    dialog/about_us_dialog.ui \
     dialog/customer_engineer_dialog.ui \
     dialog/exportreport_dialog.ui \
     dialog/result_setting_dialog.ui \
@@ -71,7 +74,7 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 #******************************************************************************************************************
 
-TARGET = Sirius-Pro_free
+TARGET = Sirius-Pro_Free
 
 DESTDIR = ./
 

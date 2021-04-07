@@ -22,6 +22,10 @@ ExportReport_Dialog::ExportReport_Dialog(QWidget *parent) :
     ui->checkBox_3D->setChecked(false);
     connect(ui->checkBox_2D, &QCheckBox::toggled, [&](bool state){ ui->checkBox_3D->setChecked(!state); });
     connect(ui->checkBox_3D, &QCheckBox::toggled, [&](bool state){ ui->checkBox_2D->setChecked(!state); });
+
+    ui->rbtn_none->setChecked(GlobalValue::com_dimensionType == 1);
+    ui->rbtn_aperture->setChecked(GlobalValue::com_dimensionType == 2);
+    ui->rbtn_sizeXY->setChecked(GlobalValue::com_dimensionType == 3);
 }
 
 ExportReport_Dialog::~ExportReport_Dialog()
@@ -56,6 +60,8 @@ void ExportReport_Dialog::on_sureBtn_clicked()
         GlobalValue::file_qua_tester = ui->lineEdit_3->text();
         GlobalValue::file_company_name = ui->lineEdit_5->text();
 
+        GlobalValue::com_dimensionType = ui->rbtn_none->isChecked() ? 1 :
+                                         (ui->rbtn_aperture->isChecked() ? 2 : 3);
 
         emit accept();
         this->close();

@@ -1,6 +1,7 @@
 ﻿{
     "menu_file": "File",
     "menu_language": "Language",
+    "menu_help": "Help",
 
     "action_load": "Load",
     "action_save": "Save",
@@ -9,6 +10,7 @@
     "action_setting": "Setting",
     "action_chinese": "Chinese",
     "action_english": "English",
+    "action_about": "About us",
 
     "graphics_circle": "Circle",
     "graphics_ellipse": "Ellipse",

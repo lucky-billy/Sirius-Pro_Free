@@ -812,6 +812,7 @@ QString GlobalString::table_style = "";
 
 QString GlobalString::menu_file = "";
 QString GlobalString::menu_language = "";
+QString GlobalString::menu_help = "";
 
 QString GlobalString::action_load = "";
 QString GlobalString::action_save = "";
@@ -820,6 +821,7 @@ QString GlobalString::action_export_report = "";
 QString GlobalString::action_setting = "";
 QString GlobalString::action_chinese = "";
 QString GlobalString::action_english = "";
+QString GlobalString::action_about = "";
 
 QString GlobalString::graphics_circle = "";
 QString GlobalString::graphics_ellipse = "";
@@ -868,6 +870,7 @@ int GlobalValue::com_unit = 0;
 int GlobalValue::com_dcl = 0;
 int GlobalValue::com_fps = 0;
 int GlobalValue::com_rnt = 0;
+int GlobalValue::com_dimensionType = 0;
 
 // analysis
 int GlobalValue::ana_row = 0;

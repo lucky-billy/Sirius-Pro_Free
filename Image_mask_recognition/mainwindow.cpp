@@ -10,6 +10,7 @@
 #include "dialog/result_setting_dialog.h"
 #include "dialog/exportreport_dialog.h"
 #include "dialog/slice_analysis_dialog.h"
+#include "dialog/about_us_dialog.h"
 #include "pztcalibrate.h"
 #include "splice.h"
 
@@ -132,7 +133,7 @@ void MainWindow::initData()
 void MainWindow::initView()
 {
     qDebug() << "initView !";
-    setWindowTitle("Sirius Pro");
+    setWindowTitle("Sirius Pro Free 3.1.2");
     setMinimumSize(1200, 700);
 
     QFont font;
@@ -189,6 +190,9 @@ void MainWindow::initView()
     // menu language
     connect(ui->action_chinese, &QAction::triggered, [&](){ changeLanguage(1); });
     connect(ui->action_english, &QAction::triggered, [&](){ changeLanguage(2); });
+
+    // about us
+    connect(ui->action_about, &QAction::triggered, [&](){ createMenuDialog(15); });
 
     connect(ui->action_analysis, &QAction::triggered, [&](){
         if ( m_matList.size() == 0 ) {
@@ -397,73 +401,74 @@ void MainWindow::createDefaultConfig()
     QString config = "config.ini";
     if ( !GlobalFun::isFileExist(config) ) {
         QSettings settings(config, QSettings::IniFormat);
-        settings.setValue(GlobalFun::BCryptographicHash("common/type"), 1);                         // 掩膜方式 1-手动 2-自动
-        settings.setValue(GlobalFun::BCryptographicHash("common/pic_scale"), 1);                    // 图片缩放比例
-        settings.setValue(GlobalFun::BCryptographicHash("common/unit"), 0);                         // 单位 0-λ 1-fr 2-nm 3-μm 4-mm
-        settings.setValue(GlobalFun::BCryptographicHash("common/decimal"), 3);                      // 小数点位数
-        settings.setValue(GlobalFun::BCryptographicHash("common/fontPixelSize"), 12);               // 字体像素大小
-        settings.setValue(GlobalFun::BCryptographicHash("common/residuesNumThresh"), 350);          // 残差点个数阈值
+        settings.setValue("common/" + GlobalFun::BCryptographicHash("type"), 1);                            // 掩膜方式 1-手动 2-自动
+        settings.setValue("common/" + GlobalFun::BCryptographicHash("pic_scale"), 1);                       // 图片缩放比例
+        settings.setValue("common/" + GlobalFun::BCryptographicHash("unit"), 0);                            // 单位 0-λ 1-fr 2-nm 3-μm 4-mm
+        settings.setValue("common/" + GlobalFun::BCryptographicHash("decimal"), 3);                         // 小数点位数
+        settings.setValue("common/" + GlobalFun::BCryptographicHash("fontPixelSize"), 12);                  // 字体像素大小
+        settings.setValue("common/" + GlobalFun::BCryptographicHash("residuesNumThresh"), 350);             // 残差点个数阈值
+        settings.setValue("common/" + GlobalFun::BCryptographicHash("dimensionType"), 1);                   // 导出报表尺寸类别 1-不显示 2-孔径 3-XY
 
-        settings.setValue(GlobalFun::BCryptographicHash("analysis/row"), 10);                       // 切割分析 - 行数
-        settings.setValue(GlobalFun::BCryptographicHash("analysis/col"), 10);                       // 切割分析 - 列数
-        settings.setValue(GlobalFun::BCryptographicHash("analysis/percentage"), 5);                 // 切割分析 - 百分比
+        settings.setValue("analysis/" + GlobalFun::BCryptographicHash("row"), 10);                          // 切割分析 - 行数
+        settings.setValue("analysis/" + GlobalFun::BCryptographicHash("col"), 10);                          // 切割分析 - 列数
+        settings.setValue("analysis/" + GlobalFun::BCryptographicHash("percentage"), 5);                    // 切割分析 - 百分比
 
-        settings.setValue(GlobalFun::BCryptographicHash("language/type"), 1);                       // 语言类型
+        settings.setValue("language/" + GlobalFun::BCryptographicHash("type"), 1);                          // 语言类型
 
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/default_size"), 3);           // 图形默认大小，单位 mm
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/pixel"), 62.6);               // 像素标定值
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/circle_radius"), 187.8);      // 圆-半径
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/ellipse_width"), 250.4);      // 椭圆-宽度
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/ellipse_height"), 187.8);     // 椭圆-高度
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/conCircle_radius_1"), 187.8); // 同心圆-内圆半径
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/conCircle_radius_2"), 313);   // 同心圆-外圆半径
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/rectangle_width"), 250.4);    // 矩形-宽度
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/rectangle_height"), 187.8);   // 矩形-高度
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/square_length"), 187.8);      // 正方形-边长
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/pill_width"), 375.6);         // 圆端矩形-宽度
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/pill_height"), 93.9);         // 圆端矩形-高度
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/chamfer_width"), 250.4);      // 圆角矩形-宽度
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/chamfer_height"), 187.8);     // 圆角矩形-高度
-        settings.setValue(GlobalFun::BCryptographicHash("graphicsItem/chamfer_radius"), 31.3);      // 圆角矩形-倒角半径
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("default_size"), 3);              // 图形默认大小，单位 mm
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("pixel"), 62.6);                  // 像素标定值
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("circle_radius"), 187.8);         // 圆-半径
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("ellipse_width"), 250.4);         // 椭圆-宽度
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("ellipse_height"), 187.8);        // 椭圆-高度
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("conCircle_radius_1"), 187.8);    // 同心圆-内圆半径
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("conCircle_radius_2"), 313);      // 同心圆-外圆半径
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("rectangle_width"), 250.4);       // 矩形-宽度
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("rectangle_height"), 187.8);      // 矩形-高度
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("square_length"), 187.8);         // 正方形-边长
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("pill_width"), 375.6);            // 圆端矩形-宽度
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("pill_height"), 93.9);            // 圆端矩形-高度
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("chamfer_width"), 250.4);         // 圆角矩形-宽度
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("chamfer_height"), 187.8);        // 圆角矩形-高度
+        settings.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("chamfer_radius"), 31.3);         // 圆角矩形-倒角半径
 
-        settings.setValue(GlobalFun::BCryptographicHash("zernike/piston"), 1);                      // 偏移量
-        settings.setValue(GlobalFun::BCryptographicHash("zernike/tilt"), 1);                        // 倾斜量
-        settings.setValue(GlobalFun::BCryptographicHash("zernike/power"), 0);                       // 离焦
-        settings.setValue(GlobalFun::BCryptographicHash("zernike/ast"), 0);                         // 像散
-        settings.setValue(GlobalFun::BCryptographicHash("zernike/coma"), 0);                        // 慧差
-        settings.setValue(GlobalFun::BCryptographicHash("zernike/spherical"), 0);                   // 球差
+        settings.setValue("zernike/" + GlobalFun::BCryptographicHash("piston"), 1);                         // 偏移量
+        settings.setValue("zernike/" + GlobalFun::BCryptographicHash("tilt"), 1);                           // 倾斜量
+        settings.setValue("zernike/" + GlobalFun::BCryptographicHash("power"), 0);                          // 离焦
+        settings.setValue("zernike/" + GlobalFun::BCryptographicHash("ast"), 0);                            // 像散
+        settings.setValue("zernike/" + GlobalFun::BCryptographicHash("coma"), 0);                           // 慧差
+        settings.setValue("zernike/" + GlobalFun::BCryptographicHash("spherical"), 0);                      // 球差
 
-        settings.setValue(GlobalFun::BCryptographicHash("file/load_path"), "null");                 // 加载文件的路径
-        settings.setValue(GlobalFun::BCryptographicHash("file/save_path"), "null");                 // 存放文件的路径
-        settings.setValue(GlobalFun::BCryptographicHash("file/pdf_path"), "null");                  // 存放 PDF 的路径
-        settings.setValue(GlobalFun::BCryptographicHash("file/product_name"), "null");              // 产品名称
-        settings.setValue(GlobalFun::BCryptographicHash("file/product_id"), "null");                // 产品ID
-        settings.setValue(GlobalFun::BCryptographicHash("file/quality_tester"), "null");            // 测试人员名称
-        settings.setValue(GlobalFun::BCryptographicHash("file/device_id"), "");                     // 设备ID
-        settings.setValue(GlobalFun::BCryptographicHash("file/device_name"), "");                   // 设备名称
-        settings.setValue(GlobalFun::BCryptographicHash("file/company_name"), "null");              // 公司名称
+        settings.setValue("file/" + GlobalFun::BCryptographicHash("load_path"), "null");                    // 加载文件的路径
+        settings.setValue("file/" + GlobalFun::BCryptographicHash("save_path"), "null");                    // 存放文件的路径
+        settings.setValue("file/" + GlobalFun::BCryptographicHash("pdf_path"), "null");                     // 存放 PDF 的路径
+        settings.setValue("file/" + GlobalFun::BCryptographicHash("product_name"), "null");                 // 产品名称
+        settings.setValue("file/" + GlobalFun::BCryptographicHash("product_id"), "null");                   // 产品ID
+        settings.setValue("file/" + GlobalFun::BCryptographicHash("quality_tester"), "null");               // 测试人员名称
+        settings.setValue("file/" + GlobalFun::BCryptographicHash("device_id"), "");                        // 设备ID
+        settings.setValue("file/" + GlobalFun::BCryptographicHash("device_name"), "");                      // 设备名称
+        settings.setValue("file/" + GlobalFun::BCryptographicHash("company_name"), "null");                 // 公司名称
     }
 
     QString parameter = "parameter.ini";
     if ( !GlobalFun::isFileExist(parameter) ) {
         QSettings settings(parameter, QSettings::IniFormat);
 
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/psi"), 5);                       // 几步移相 0-4A 1-5AH 2-5BCS 3-9ACS 4-9BCS 5-AIA
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/unwrap"), 0);                    // 解包裹 0-枝切法 1-质量图 2-跨区枝切法
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/zernikeTerm"), 37);              // zernike显示数量
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/intf_scale_factor"), 0.5);       // 比例因子，内标度系数
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/test_wavelength"), 632.8);       // 测试波长
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/iso_wavelength"), 546);          // ISO波长
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/result_wavelength"), 632.8);     // 输出波长，1个λ对应多少nm
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/highPass_filterCoef"), 0.005);   // 计算高通滤波半径的系数
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("psi"), 5);                          // 几步移相 0-4A 1-5AH 2-5BCS 3-9ACS 4-9BCS 5-AIA
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("unwrap"), 0);                       // 解包裹 0-枝切法 1-质量图 2-跨区枝切法
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("zernikeTerm"), 37);                 // zernike显示数量
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("intf_scale_factor"), 0.5);          // 比例因子，内标度系数
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("test_wavelength"), 632.8);          // 测试波长
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("iso_wavelength"), 546);             // ISO波长
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("result_wavelength"), 632.8);        // 输出波长，1个λ对应多少nm
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("highPass_filterCoef"), 0.005);      // 计算高通滤波半径的系数
 
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/filter"), 0);                    // 滤波 0-none 1-LOW_PASS 2-HIGH_PASS 3-BAND_PASS 4-BAND_REJECT
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/fws"), 5);                       // filter windows size
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/remove_spikes"), 1);             // 去毛刺
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/slopeRemoveSize"), 2);           // 去毛刺阈值像素数
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/slopeThresh"), 4);               // 去毛刺阈值
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/remove_residual"), 0);           // 去残差
-        settings.setValue(GlobalFun::BCryptographicHash("parameter/refractive_index"), 1.5);        // 折射率，计算ttv时要用
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("filter"), 0);                       // 滤波 0-none 1-LOW_PASS 2-HIGH_PASS 3-BAND_PASS 4-BAND_REJECT
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("fws"), 5);                          // filter windows size
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("remove_spikes"), 1);                // 去毛刺
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("slopeRemoveSize"), 2);              // 去毛刺阈值像素数
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("slopeThresh"), 4);                  // 去毛刺阈值
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("remove_residual"), 0);              // 去残差
+        settings.setValue("parameter/" + GlobalFun::BCryptographicHash("refractive_index"), 1.5);           // 折射率，计算ttv时要用
 
         settings.beginWriteArray("algorithmList");
         settings.setArrayIndex(0);
@@ -498,72 +503,73 @@ void MainWindow::loadConfig()
 {
     QSettings config("config.ini", QSettings::IniFormat);
 
-    GlobalValue::com_tp = config.value(GlobalFun::BCryptographicHash("common/type")).toInt();
-    GlobalValue::com_p_sle = config.value(GlobalFun::BCryptographicHash("common/pic_scale")).toDouble();
-    GlobalValue::com_unit = config.value(GlobalFun::BCryptographicHash("common/unit")).toInt();
-    GlobalValue::com_dcl = config.value(GlobalFun::BCryptographicHash("common/decimal")).toInt();
-    GlobalValue::com_fps = config.value(GlobalFun::BCryptographicHash("common/fontPixelSize")).toInt();
-    GlobalValue::com_rnt = config.value(GlobalFun::BCryptographicHash("common/residuesNumThresh")).toInt();
+    GlobalValue::com_tp = config.value("common/" + GlobalFun::BCryptographicHash("type")).toInt();
+    GlobalValue::com_p_sle = config.value("common/" + GlobalFun::BCryptographicHash("pic_scale")).toDouble();
+    GlobalValue::com_unit = config.value("common/" + GlobalFun::BCryptographicHash("unit")).toInt();
+    GlobalValue::com_dcl = config.value("common/" + GlobalFun::BCryptographicHash("decimal")).toInt();
+    GlobalValue::com_fps = config.value("common/" + GlobalFun::BCryptographicHash("fontPixelSize")).toInt();
+    GlobalValue::com_rnt = config.value("common/" + GlobalFun::BCryptographicHash("residuesNumThresh")).toInt();
+    GlobalValue::com_dimensionType = config.value("common/" + GlobalFun::BCryptographicHash("dimensionType")).toInt();
 
-    GlobalValue::ana_row = config.value(GlobalFun::BCryptographicHash("analysis/row")).toInt();
-    GlobalValue::ana_col = config.value(GlobalFun::BCryptographicHash("analysis/col")).toInt();
-    GlobalValue::ana_per = config.value(GlobalFun::BCryptographicHash("analysis/percentage")).toInt();
+    GlobalValue::ana_row = config.value("analysis/" + GlobalFun::BCryptographicHash("row")).toInt();
+    GlobalValue::ana_col = config.value("analysis/" + GlobalFun::BCryptographicHash("col")).toInt();
+    GlobalValue::ana_per = config.value("analysis/" + GlobalFun::BCryptographicHash("percentage")).toInt();
 
-    GlobalValue::lgn_tp = config.value(GlobalFun::BCryptographicHash("language/type")).toInt();
+    GlobalValue::lgn_tp = config.value("language/" + GlobalFun::BCryptographicHash("type")).toInt();
 
-    GlobalValue::gra_def_size = config.value(GlobalFun::BCryptographicHash("graphicsItem/default_size")).toInt();
-    GlobalValue::gra_pixel = config.value(GlobalFun::BCryptographicHash("graphicsItem/pixel")).toInt();
-    GlobalValue::gra_c_rad = config.value(GlobalFun::BCryptographicHash("graphicsItem/circle_radius")).toDouble();
-    GlobalValue::gra_e_wid = config.value(GlobalFun::BCryptographicHash("graphicsItem/ellipse_width")).toDouble();
-    GlobalValue::gra_e_hei = config.value(GlobalFun::BCryptographicHash("graphicsItem/ellipse_height")).toDouble();
-    GlobalValue::gra_cc_rad_1 = config.value(GlobalFun::BCryptographicHash("graphicsItem/conCircle_radius_1")).toDouble();
-    GlobalValue::gra_cc_rad_2 = config.value(GlobalFun::BCryptographicHash("graphicsItem/conCircle_radius_2")).toDouble();
-    GlobalValue::gra_r_wid = config.value(GlobalFun::BCryptographicHash("graphicsItem/rectangle_width")).toDouble();
-    GlobalValue::gra_r_hei = config.value(GlobalFun::BCryptographicHash("graphicsItem/rectangle_height")).toDouble();
-    GlobalValue::gra_s_len = config.value(GlobalFun::BCryptographicHash("graphicsItem/square_length")).toDouble();
-    GlobalValue::gra_p_wid = config.value(GlobalFun::BCryptographicHash("graphicsItem/pill_width")).toDouble();
-    GlobalValue::gra_p_hei = config.value(GlobalFun::BCryptographicHash("graphicsItem/pill_height")).toDouble();
-    GlobalValue::gra_ch_wid = config.value(GlobalFun::BCryptographicHash("graphicsItem/chamfer_width")).toDouble();
-    GlobalValue::gra_ch_hei = config.value(GlobalFun::BCryptographicHash("graphicsItem/chamfer_height")).toDouble();
-    GlobalValue::gra_ch_rad = config.value(GlobalFun::BCryptographicHash("graphicsItem/chamfer_radius")).toDouble();
+    GlobalValue::gra_def_size = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("default_size")).toInt();
+    GlobalValue::gra_pixel = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("pixel")).toInt();
+    GlobalValue::gra_c_rad = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("circle_radius")).toDouble();
+    GlobalValue::gra_e_wid = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("ellipse_width")).toDouble();
+    GlobalValue::gra_e_hei = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("ellipse_height")).toDouble();
+    GlobalValue::gra_cc_rad_1 = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("conCircle_radius_1")).toDouble();
+    GlobalValue::gra_cc_rad_2 = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("conCircle_radius_2")).toDouble();
+    GlobalValue::gra_r_wid = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("rectangle_width")).toDouble();
+    GlobalValue::gra_r_hei = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("rectangle_height")).toDouble();
+    GlobalValue::gra_s_len = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("square_length")).toDouble();
+    GlobalValue::gra_p_wid = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("pill_width")).toDouble();
+    GlobalValue::gra_p_hei = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("pill_height")).toDouble();
+    GlobalValue::gra_ch_wid = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("chamfer_width")).toDouble();
+    GlobalValue::gra_ch_hei = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("chamfer_height")).toDouble();
+    GlobalValue::gra_ch_rad = config.value("graphicsItem/" + GlobalFun::BCryptographicHash("chamfer_radius")).toDouble();
 
-    GlobalValue::zer_pis = config.value(GlobalFun::BCryptographicHash("zernike/piston")).toInt();
-    GlobalValue::zer_tilt = config.value(GlobalFun::BCryptographicHash("zernike/tilt")).toInt();
-    GlobalValue::zer_pow = config.value(GlobalFun::BCryptographicHash("zernike/power")).toInt();
-    GlobalValue::zer_ast = config.value(GlobalFun::BCryptographicHash("zernike/ast")).toInt();
-    GlobalValue::zer_coma = config.value(GlobalFun::BCryptographicHash("zernike/coma")).toInt();
-    GlobalValue::zer_sph = config.value(GlobalFun::BCryptographicHash("zernike/spherical")).toInt();
+    GlobalValue::zer_pis = config.value("zernike/" + GlobalFun::BCryptographicHash("piston")).toInt();
+    GlobalValue::zer_tilt = config.value("zernike/" + GlobalFun::BCryptographicHash("tilt")).toInt();
+    GlobalValue::zer_pow = config.value("zernike/" + GlobalFun::BCryptographicHash("power")).toInt();
+    GlobalValue::zer_ast = config.value("zernike/" + GlobalFun::BCryptographicHash("ast")).toInt();
+    GlobalValue::zer_coma = config.value("zernike/" + GlobalFun::BCryptographicHash("coma")).toInt();
+    GlobalValue::zer_sph = config.value("zernike/" + GlobalFun::BCryptographicHash("spherical")).toInt();
 
-    GlobalValue::file_load_path = config.value(GlobalFun::BCryptographicHash("file/load_path")).toString();
-    GlobalValue::file_save_path = config.value(GlobalFun::BCryptographicHash("file/save_path")).toString();
-    GlobalValue::file_pdf_path = config.value(GlobalFun::BCryptographicHash("file/pdf_path")).toString();
-    GlobalValue::file_pdt_name = config.value(GlobalFun::BCryptographicHash("file/product_name")).toString();
-    GlobalValue::file_pdt_id = config.value(GlobalFun::BCryptographicHash("file/product_id")).toString();
-    GlobalValue::file_qua_tester = config.value(GlobalFun::BCryptographicHash("file/quality_tester")).toString();
-    GlobalValue::file_device_id = config.value(GlobalFun::BCryptographicHash("file/device_id")).toString();
-    GlobalValue::file_device_name = config.value(GlobalFun::BCryptographicHash("file/device_name")).toString();
-    GlobalValue::file_company_name = config.value(GlobalFun::BCryptographicHash("file/company_name")).toString();
+    GlobalValue::file_load_path = config.value("file/" + GlobalFun::BCryptographicHash("load_path")).toString();
+    GlobalValue::file_save_path = config.value("file/" + GlobalFun::BCryptographicHash("save_path")).toString();
+    GlobalValue::file_pdf_path = config.value("file/" + GlobalFun::BCryptographicHash("pdf_path")).toString();
+    GlobalValue::file_pdt_name = config.value("file/" + GlobalFun::BCryptographicHash("product_name")).toString();
+    GlobalValue::file_pdt_id = config.value("file/" + GlobalFun::BCryptographicHash("product_id")).toString();
+    GlobalValue::file_qua_tester = config.value("file/" + GlobalFun::BCryptographicHash("quality_tester")).toString();
+    GlobalValue::file_device_id = config.value("file/" + GlobalFun::BCryptographicHash("device_id")).toString();
+    GlobalValue::file_device_name = config.value("file/" + GlobalFun::BCryptographicHash("device_name")).toString();
+    GlobalValue::file_company_name = config.value("file/" + GlobalFun::BCryptographicHash("company_name")).toString();
 
     //------------------------------------------------------------------------------
 
     QSettings parameter("parameter.ini", QSettings::IniFormat);
 
-    GlobalValue::par_psi = parameter.value(GlobalFun::BCryptographicHash("parameter/psi")).toInt();
-    GlobalValue::par_unw = parameter.value(GlobalFun::BCryptographicHash("parameter/unwrap")).toInt();
-    GlobalValue::par_ztm = parameter.value(GlobalFun::BCryptographicHash("parameter/zernikeTerm")).toInt();
-    GlobalValue::par_i_s_f = parameter.value(GlobalFun::BCryptographicHash("parameter/intf_scale_factor")).toDouble();
-    GlobalValue::par_t_w = parameter.value(GlobalFun::BCryptographicHash("parameter/test_wavelength")).toDouble();
-    GlobalValue::par_i_w = parameter.value(GlobalFun::BCryptographicHash("parameter/iso_wavelength")).toDouble();
-    GlobalValue::par_r_w = parameter.value(GlobalFun::BCryptographicHash("parameter/result_wavelength")).toDouble();
-    GlobalValue::par_hp_fc = parameter.value(GlobalFun::BCryptographicHash("parameter/highPass_filterCoef")).toDouble();
+    GlobalValue::par_psi = parameter.value("parameter/" + GlobalFun::BCryptographicHash("psi")).toInt();
+    GlobalValue::par_unw = parameter.value("parameter/" + GlobalFun::BCryptographicHash("unwrap")).toInt();
+    GlobalValue::par_ztm = parameter.value("parameter/" + GlobalFun::BCryptographicHash("zernikeTerm")).toInt();
+    GlobalValue::par_i_s_f = parameter.value("parameter/" + GlobalFun::BCryptographicHash("intf_scale_factor")).toDouble();
+    GlobalValue::par_t_w = parameter.value("parameter/" + GlobalFun::BCryptographicHash("test_wavelength")).toDouble();
+    GlobalValue::par_i_w = parameter.value("parameter/" + GlobalFun::BCryptographicHash("iso_wavelength")).toDouble();
+    GlobalValue::par_r_w = parameter.value("parameter/" + GlobalFun::BCryptographicHash("result_wavelength")).toDouble();
+    GlobalValue::par_hp_fc = parameter.value("parameter/" + GlobalFun::BCryptographicHash("highPass_filterCoef")).toDouble();
 
-    GlobalValue::par_flt = parameter.value(GlobalFun::BCryptographicHash("parameter/filter")).toInt();
-    GlobalValue::par_fws = parameter.value(GlobalFun::BCryptographicHash("parameter/fws")).toInt();
-    GlobalValue::par_rm_spk = parameter.value(GlobalFun::BCryptographicHash("parameter/remove_spikes")).toInt();
-    GlobalValue::par_srs = parameter.value(GlobalFun::BCryptographicHash("parameter/slopeRemoveSize")).toInt();
-    GlobalValue::par_sth = parameter.value(GlobalFun::BCryptographicHash("parameter/slopeThresh")).toInt();
-    GlobalValue::par_rm_rsl = parameter.value(GlobalFun::BCryptographicHash("parameter/remove_residual")).toInt();
-    GlobalValue::par_ref_index = parameter.value(GlobalFun::BCryptographicHash("parameter/refractive_index")).toDouble();
+    GlobalValue::par_flt = parameter.value("parameter/" + GlobalFun::BCryptographicHash("filter")).toInt();
+    GlobalValue::par_fws = parameter.value("parameter/" + GlobalFun::BCryptographicHash("fws")).toInt();
+    GlobalValue::par_rm_spk = parameter.value("parameter/" + GlobalFun::BCryptographicHash("remove_spikes")).toInt();
+    GlobalValue::par_srs = parameter.value("parameter/" + GlobalFun::BCryptographicHash("slopeRemoveSize")).toInt();
+    GlobalValue::par_sth = parameter.value("parameter/" + GlobalFun::BCryptographicHash("slopeThresh")).toInt();
+    GlobalValue::par_rm_rsl = parameter.value("parameter/" + GlobalFun::BCryptographicHash("remove_residual")).toInt();
+    GlobalValue::par_ref_index = parameter.value("parameter/" + GlobalFun::BCryptographicHash("refractive_index")).toDouble();
 
     //------------------------------------------------------------------------------
 
@@ -588,72 +594,73 @@ void MainWindow::saveConfig()
 {
     QSettings config("config.ini", QSettings::IniFormat);
 
-    config.setValue(GlobalFun::BCryptographicHash("common/type"), GlobalValue::com_tp);
-    config.setValue(GlobalFun::BCryptographicHash("common/pic_scale"), GlobalValue::com_p_sle);
-    config.setValue(GlobalFun::BCryptographicHash("common/unit"), GlobalValue::com_unit);
-    config.setValue(GlobalFun::BCryptographicHash("common/decimal"), GlobalValue::com_dcl);
-    config.setValue(GlobalFun::BCryptographicHash("common/fontPixelSize"), GlobalValue::com_fps);
-    config.setValue(GlobalFun::BCryptographicHash("common/residuesNumThresh"), GlobalValue::com_rnt);
+    config.setValue("common/" + GlobalFun::BCryptographicHash("type"), GlobalValue::com_tp);
+    config.setValue("common/" + GlobalFun::BCryptographicHash("pic_scale"), GlobalValue::com_p_sle);
+    config.setValue("common/" + GlobalFun::BCryptographicHash("unit"), GlobalValue::com_unit);
+    config.setValue("common/" + GlobalFun::BCryptographicHash("decimal"), GlobalValue::com_dcl);
+    config.setValue("common/" + GlobalFun::BCryptographicHash("fontPixelSize"), GlobalValue::com_fps);
+    config.setValue("common/" + GlobalFun::BCryptographicHash("residuesNumThresh"), GlobalValue::com_rnt);
+    config.setValue("common/" + GlobalFun::BCryptographicHash("dimensionType"), GlobalValue::com_dimensionType);
 
-    config.setValue(GlobalFun::BCryptographicHash("analysis/row"), GlobalValue::ana_row);
-    config.setValue(GlobalFun::BCryptographicHash("analysis/col"), GlobalValue::ana_col);
-    config.setValue(GlobalFun::BCryptographicHash("analysis/percentage"), GlobalValue::ana_per);
+    config.setValue("analysis/" + GlobalFun::BCryptographicHash("row"), GlobalValue::ana_row);
+    config.setValue("analysis/" + GlobalFun::BCryptographicHash("col"), GlobalValue::ana_col);
+    config.setValue("analysis/" + GlobalFun::BCryptographicHash("percentage"), GlobalValue::ana_per);
 
-    config.setValue(GlobalFun::BCryptographicHash("language/type"), GlobalValue::lgn_tp);
+    config.setValue("language/" + GlobalFun::BCryptographicHash("type"), GlobalValue::lgn_tp);
 
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/default_size"), GlobalValue::gra_def_size);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/pixel"), GlobalValue::gra_pixel);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/circle_radius"), GlobalValue::gra_c_rad);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/ellipse_width"), GlobalValue::gra_e_wid);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/ellipse_height"), GlobalValue::gra_e_hei);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/conCircle_radius_1"), GlobalValue::gra_cc_rad_1);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/conCircle_radius_2"), GlobalValue::gra_cc_rad_2);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/rectangle_width"), GlobalValue::gra_r_wid);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/rectangle_height"), GlobalValue::gra_r_hei);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/square_length"), GlobalValue::gra_s_len);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/pill_width"), GlobalValue::gra_p_wid);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/pill_height"), GlobalValue::gra_p_hei);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/chamfer_width"), GlobalValue::gra_ch_wid);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/chamfer_height"), GlobalValue::gra_ch_hei);
-    config.setValue(GlobalFun::BCryptographicHash("graphicsItem/chamfer_radius"), GlobalValue::gra_ch_rad);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("default_size"), GlobalValue::gra_def_size);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("pixel"), GlobalValue::gra_pixel);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("circle_radius"), GlobalValue::gra_c_rad);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("ellipse_width"), GlobalValue::gra_e_wid);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("ellipse_height"), GlobalValue::gra_e_hei);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("conCircle_radius_1"), GlobalValue::gra_cc_rad_1);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("conCircle_radius_2"), GlobalValue::gra_cc_rad_2);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("rectangle_width"), GlobalValue::gra_r_wid);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("rectangle_height"), GlobalValue::gra_r_hei);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("square_length"), GlobalValue::gra_s_len);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("pill_width"), GlobalValue::gra_p_wid);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("pill_height"), GlobalValue::gra_p_hei);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("chamfer_width"), GlobalValue::gra_ch_wid);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("chamfer_height"), GlobalValue::gra_ch_hei);
+    config.setValue("graphicsItem/" + GlobalFun::BCryptographicHash("chamfer_radius"), GlobalValue::gra_ch_rad);
 
-    config.setValue(GlobalFun::BCryptographicHash("zernike/piston"), GlobalValue::zer_pis);
-    config.setValue(GlobalFun::BCryptographicHash("zernike/tilt"), GlobalValue::zer_tilt);
-    config.setValue(GlobalFun::BCryptographicHash("zernike/power"), GlobalValue::zer_pow);
-    config.setValue(GlobalFun::BCryptographicHash("zernike/ast"), GlobalValue::zer_ast);
-    config.setValue(GlobalFun::BCryptographicHash("zernike/coma"), GlobalValue::zer_coma);
-    config.setValue(GlobalFun::BCryptographicHash("zernike/spherical"), GlobalValue::zer_sph);
+    config.setValue("zernike/" + GlobalFun::BCryptographicHash("piston"), GlobalValue::zer_pis);
+    config.setValue("zernike/" + GlobalFun::BCryptographicHash("tilt"), GlobalValue::zer_tilt);
+    config.setValue("zernike/" + GlobalFun::BCryptographicHash("power"), GlobalValue::zer_pow);
+    config.setValue("zernike/" + GlobalFun::BCryptographicHash("ast"), GlobalValue::zer_ast);
+    config.setValue("zernike/" + GlobalFun::BCryptographicHash("coma"), GlobalValue::zer_coma);
+    config.setValue("zernike/" + GlobalFun::BCryptographicHash("spherical"), GlobalValue::zer_sph);
 
-    config.setValue(GlobalFun::BCryptographicHash("file/load_path"), GlobalValue::file_load_path);
-    config.setValue(GlobalFun::BCryptographicHash("file/save_path"), GlobalValue::file_save_path);
-    config.setValue(GlobalFun::BCryptographicHash("file/pdf_path"), GlobalValue::file_pdf_path);
-    config.setValue(GlobalFun::BCryptographicHash("file/product_name"), GlobalValue::file_pdt_name);
-    config.setValue(GlobalFun::BCryptographicHash("file/product_id"), GlobalValue::file_pdt_id);
-    config.setValue(GlobalFun::BCryptographicHash("file/quality_tester"), GlobalValue::file_qua_tester);
-    config.setValue(GlobalFun::BCryptographicHash("file/device_id"), GlobalValue::file_device_id);
-    config.setValue(GlobalFun::BCryptographicHash("file/device_name"), GlobalValue::file_device_name);
-    config.setValue(GlobalFun::BCryptographicHash("file/company_name"), GlobalValue::file_company_name);
+    config.setValue("file/" + GlobalFun::BCryptographicHash("load_path"), GlobalValue::file_load_path);
+    config.setValue("file/" + GlobalFun::BCryptographicHash("save_path"), GlobalValue::file_save_path);
+    config.setValue("file/" + GlobalFun::BCryptographicHash("pdf_path"), GlobalValue::file_pdf_path);
+    config.setValue("file/" + GlobalFun::BCryptographicHash("product_name"), GlobalValue::file_pdt_name);
+    config.setValue("file/" + GlobalFun::BCryptographicHash("product_id"), GlobalValue::file_pdt_id);
+    config.setValue("file/" + GlobalFun::BCryptographicHash("quality_tester"), GlobalValue::file_qua_tester);
+    config.setValue("file/" + GlobalFun::BCryptographicHash("device_id"), GlobalValue::file_device_id);
+    config.setValue("file/" + GlobalFun::BCryptographicHash("device_name"), GlobalValue::file_device_name);
+    config.setValue("file/" + GlobalFun::BCryptographicHash("company_name"), GlobalValue::file_company_name);
 
     //------------------------------------------------------------------------------
 
     QSettings parameter("parameter.ini", QSettings::IniFormat);
 
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/psi"), GlobalValue::par_psi);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/unwrap"), GlobalValue::par_unw);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/zernikeTerm"), GlobalValue::par_ztm);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/intf_scale_factor"), GlobalValue::par_i_s_f);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/test_wavelength"), GlobalValue::par_t_w);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/iso_wavelength"), GlobalValue::par_i_w);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/result_wavelength"), GlobalValue::par_r_w);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/highPass_filterCoef"), GlobalValue::par_hp_fc);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("psi"), GlobalValue::par_psi);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("unwrap"), GlobalValue::par_unw);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("zernikeTerm"), GlobalValue::par_ztm);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("intf_scale_factor"), GlobalValue::par_i_s_f);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("test_wavelength"), GlobalValue::par_t_w);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("iso_wavelength"), GlobalValue::par_i_w);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("result_wavelength"), GlobalValue::par_r_w);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("highPass_filterCoef"), GlobalValue::par_hp_fc);
 
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/filter"), GlobalValue::par_flt);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/fws"), GlobalValue::par_fws);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/remove_spikes"), GlobalValue::par_rm_spk);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/slopeRemoveSize"), GlobalValue::par_srs);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/slopeThresh"), GlobalValue::par_sth);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/remove_residual"), GlobalValue::par_rm_rsl);
-    parameter.setValue(GlobalFun::BCryptographicHash("parameter/refractive_index"), GlobalValue::par_ref_index);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("filter"), GlobalValue::par_flt);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("fws"), GlobalValue::par_fws);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("remove_spikes"), GlobalValue::par_rm_spk);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("slopeRemoveSize"), GlobalValue::par_srs);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("slopeThresh"), GlobalValue::par_sth);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("remove_residual"), GlobalValue::par_rm_rsl);
+    parameter.setValue("parameter/" + GlobalFun::BCryptographicHash("refractive_index"), GlobalValue::par_ref_index);
 
     //------------------------------------------------------------------------------
 
@@ -842,6 +849,7 @@ void MainWindow::changeLanguage(int type)
     QJsonObject obj = GlobalFun::getJsonObj(source);
     GlobalString::menu_file = obj.value("menu_file").toString();
     GlobalString::menu_language = obj.value("menu_language").toString();
+    GlobalString::menu_help = obj.value("menu_help").toString();
 
     GlobalString::action_load = obj.value("action_load").toString();
     GlobalString::action_save = obj.value("action_save").toString();
@@ -850,6 +858,7 @@ void MainWindow::changeLanguage(int type)
     GlobalString::action_setting = obj.value("action_setting").toString();
     GlobalString::action_chinese = obj.value("action_chinese").toString();
     GlobalString::action_english = obj.value("action_english").toString();
+    GlobalString::action_about = obj.value("action_about").toString();
 
     GlobalString::graphics_circle = obj.value("graphics_circle").toString();
     GlobalString::graphics_ellipse = obj.value("graphics_ellipse").toString();
@@ -891,6 +900,7 @@ void MainWindow::changeLanguage(int type)
 
     ui->menu_file->setTitle(GlobalString::menu_file);
     ui->menu_language->setTitle(GlobalString::menu_language);
+    ui->menu_help->setTitle(GlobalString::menu_help);
 
     ui->action_load->setText(GlobalString::action_load);
     ui->action_save->setText(GlobalString::action_save);
@@ -898,6 +908,7 @@ void MainWindow::changeLanguage(int type)
     ui->action_export_report->setText(GlobalString::action_export_report);
     ui->action_chinese->setText(GlobalString::action_chinese);
     ui->action_english->setText(GlobalString::action_english);
+    ui->action_about->setText(GlobalString::action_about);
 
     ui->circleBtn->setText(GlobalString::graphics_circle);
     ui->ellipseBtn->setText(GlobalString::graphics_ellipse);
@@ -1216,10 +1227,29 @@ bool MainWindow::exportReport()
     if ( GlobalValue::zer_coma == 1 ) { removeStr += "Coma; "; }
     if ( GlobalValue::zer_sph == 1 ) { removeStr += "Spherical; "; }
     if ( removeStr == "" ) { removeStr = "/"; }
-    serial_id = GlobalValue::file_device_id == "" ? "/":GlobalValue::file_device_id;
+    serial_id = GlobalValue::file_device_id == "" ? "/": GlobalValue::file_device_id;
+
+    QString caliberInfo;
+    if ( GlobalValue::com_dimensionType == 1 ) {
+        caliberInfo = "/";
+    } else if ( GlobalValue::com_dimensionType == 2 ) {
+        float decimal = 5 / pow(10, GlobalValue::com_dcl+1);
+        int divisor = pow(10, GlobalValue::com_dcl);
+        qreal aperture = floor((m_algorithm->totalResult.aperture + decimal) * divisor) / divisor;
+
+        caliberInfo = "Aperture: " + QString::number(aperture) + " mm";
+    } else if ( GlobalValue::com_dimensionType == 3 ) {
+        float decimal = 5 / pow(10, GlobalValue::com_dcl+1);
+        int divisor = pow(10, GlobalValue::com_dcl);
+        qreal sizeX = floor((m_algorithm->totalResult.sizeX + decimal) * divisor) / divisor;
+        qreal sizeY = floor((m_algorithm->totalResult.sizeY + decimal) * divisor) / divisor;
+
+        caliberInfo = "sizeX: " + QString::number(sizeX) + " mm; sizeY: " + QString::number(sizeY) + " mm";
+    }
 
     list.clear();
-    list << product_name << product_id << quality_tester << GlobalFun::getCurrentTime(5) << serial_id << comments << removeStr;
+    list << product_name << product_id << quality_tester << GlobalFun::getCurrentTime(5)
+         << serial_id << comments << caliberInfo << removeStr;
     pdf.drawProductInfo(GlobalValue::lgn_tp == 1, list);
 
     // Seidel
@@ -1256,7 +1286,13 @@ bool MainWindow::exportReport()
     int count = 12;
     for ( int i = 0; i < ui->result_table->rowCount(); ++i )
     {
-        list << ui->result_table->item(i, 0)->text();
+        QString name = ui->result_table->item(i, 0)->text();
+
+        if ( name == "Aperture" || name == "SizeX" || name == "SizeY" ) {
+            continue;
+        }
+
+        list << name;
         vulist << ui->result_table->item(i, 1)->text() + " " + ui->result_table->item(i, 2)->text();
         count--;
         if ( count == 0 ) { break; }
@@ -1783,7 +1819,7 @@ void MainWindow::saveACS(QString path)
     const int phase_invalid_value = 2147483640;
     count = 0;
 
-    mat = m_algorithm->unwrappedPhase_original.clone();
+    mat = m_algorithm->unwrappedPhase.clone();
 
     cv::Mat image = cv::Mat(m_matList.at(0).rows, m_matList.at(0).cols, CV_32FC1, cv::Scalar(nan("")));
 
@@ -2834,6 +2870,11 @@ void MainWindow::createMenuDialog(int type)
     } break;
     case 14: {
     } break;
+    case 15: {
+        About_us_Dialog *dialog = new About_us_Dialog(this);
+        dialog->exec();
+        delete dialog;
+    }
     default: break;
     }
 }

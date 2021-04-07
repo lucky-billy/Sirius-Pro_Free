@@ -142,6 +142,7 @@ public:
 
     static QString menu_file;
     static QString menu_language;
+    static QString menu_help;
 
     static QString action_load;
     static QString action_save;
@@ -150,6 +151,7 @@ public:
     static QString action_setting;
     static QString action_chinese;
     static QString action_english;
+    static QString action_about;
 
     static QString graphics_circle;
     static QString graphics_ellipse;
@@ -202,6 +204,7 @@ public:
     static int com_dcl;
     static int com_fps;
     static int com_rnt;
+    static int com_dimensionType;
 
     // analysis
     static int ana_row;

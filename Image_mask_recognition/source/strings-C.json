@@ -1,6 +1,7 @@
 ﻿{
     "menu_file": "文件",
     "menu_language": "语言",
+    "menu_help": "帮助",
 
     "action_load": "加载",
     "action_save": "保存",
@@ -9,6 +10,7 @@
     "action_setting": "设置",
     "action_chinese": "中文",
     "action_english": "英文",
+    "action_about": "关于我们",
 
     "graphics_circle": "圆",
     "graphics_ellipse": "椭圆",

@@ -14,5 +14,6 @@
         <file>images/Splice.png</file>
         <file>images/ExportPDF.png</file>
         <file>images/Dot.png</file>
+        <file>images/About.png</file>
     </qresource>
 </RCC>

@@ -665,7 +665,7 @@
      <x>0</x>
      <y>0</y>
      <width>1600</width>
-     <height>22</height>
+     <height>25</height>
     </rect>
    </property>
    <property name="contextMenuPolicy">
@@ -690,8 +690,15 @@
     <addaction name="action_chinese"/>
     <addaction name="action_english"/>
    </widget>
+   <widget class="QMenu" name="menu_help">
+    <property name="title">
+     <string>帮助</string>
+    </property>
+    <addaction name="action_about"/>
+   </widget>
    <addaction name="menu_file"/>
    <addaction name="menu_language"/>
+   <addaction name="menu_help"/>
   </widget>
   <widget class="QToolBar" name="toolBar">
    <property name="contextMenuPolicy">
@@ -905,6 +912,18 @@
    </property>
    <property name="toolTip">
     <string>SliceAnalysis</string>
+   </property>
+  </action>
+  <action name="action_about">
+   <property name="icon">
+    <iconset resource="image.qrc">
+     <normaloff>:/images/About.png</normaloff>:/images/About.png</iconset>
+   </property>
+   <property name="text">
+    <string>关于我们</string>
+   </property>
+   <property name="toolTip">
+    <string>About</string>
    </property>
   </action>
  </widget>

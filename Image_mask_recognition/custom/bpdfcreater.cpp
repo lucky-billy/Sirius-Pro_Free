@@ -17,7 +17,7 @@ BPdfCreater::BPdfCreater(const QString &file)
     m_pdfWriter->setTitle(QStringLiteral("检测报告"));
 
     m_painter = new QPainter(m_pdfWriter);                              // 绘图工具
-    height = 23;
+    height = 24;
 
     setPen(5,Qt::lightGray);
     m_painter->drawLine(QPointF(vw()/2, 0), QPointF(vw()/2, vh()));     // 绘制左侧
@@ -151,9 +151,11 @@ void BPdfCreater::drawProductInfo(bool state, QStringList &list)
     m_painter->drawText(QRect(vw()/2, vh()/height*6, vw()/4, vh()/height), Qt::AlignCenter,
                         state ? QStringLiteral("备注:"): "Comments:");
     m_painter->drawText(QRect(vw()/2, vh()/height*7, vw()/4, vh()/height), Qt::AlignCenter,
+                        state ? QStringLiteral("尺寸:"): "Dimension:");
+    m_painter->drawText(QRect(vw()/2, vh()/height*8, vw()/4, vh()/height), Qt::AlignCenter,
                         state ? QStringLiteral("移除项:"): "Remove Items:");
 
-    setFont(60);
+    setFont(50);
     QStringList removeList = list.at(6).split(";");
     int rm_height = removeList.size() > 6 ? 2 : 1;
     m_painter->drawText(QRect(vw()/4*3, vh()/height*1, vw()/4, vh()/height), Qt::AlignCenter, list.at(0));
@@ -162,54 +164,55 @@ void BPdfCreater::drawProductInfo(bool state, QStringList &list)
     m_painter->drawText(QRect(vw()/4*3, vh()/height*4, vw()/4, vh()/height), Qt::AlignCenter, list.at(3));
     m_painter->drawText(QRect(vw()/4*3, vh()/height*5, vw()/4, vh()/height), Qt::TextWordWrap | Qt::AlignCenter, list.at(4));
     m_painter->drawText(QRect(vw()/4*3, vh()/height*6, vw()/4, vh()/height), Qt::TextWordWrap | Qt::AlignCenter, list.at(5));
-    m_painter->drawText(QRect(vw()/4*3, vh()/height*7, vw()/4, vh()/height*rm_height), Qt::TextWordWrap | Qt::AlignCenter, list.at(6));
+    m_painter->drawText(QRect(vw()/4*3, vh()/height*7, vw()/4, vh()/height), Qt::TextWordWrap | Qt::AlignCenter, list.at(6));
+    m_painter->drawText(QRect(vw()/4*3, vh()/height*8, vw()/4, vh()/height*rm_height), Qt::TextWordWrap | Qt::AlignCenter, list.at(7));
 }
 
 void BPdfCreater::drawSeidelInfo(QStringList &list)
 {
     setPen(4, Qt::darkGray, Qt::DotLine);
-    m_painter->drawLine(QPointF(vw()/2+20, vh()/height*9.5), QPointF(vw()-20, vh()/height*9.5));
+    m_painter->drawLine(QPointF(vw()/2+20, vh()/height*10.5), QPointF(vw()-20, vh()/height*9.5));
 
-    m_painter->fillRect(QRectF(vw()/2, vh()/height*8.5, vw()/2, vh()/height), QBrush(Qt::gray));
+    m_painter->fillRect(QRectF(vw()/2, vh()/height*9.5, vw()/2, vh()/height), QBrush(Qt::gray));
 
     setPen(5, Qt::black);
     setFont(80, true);
-    m_painter->drawText(QRect(vw()/2, vh()/height*8.5, vw()/4, vh()/height), Qt::AlignCenter, "Seidel Aberration");
+    m_painter->drawText(QRect(vw()/2, vh()/height*9.5, vw()/4, vh()/height), Qt::AlignCenter, "Seidel Aberration");
 
     setFont(60, true);
-    m_painter->drawText(QRect(vw()/2, vh()/height*9.5, vw()/4, vh()/height), Qt::AlignCenter, "Seidel");
-    m_painter->drawText(QRect(vw()/64*47, vh()/height*9.5, vw()/8, vh()/height), Qt::AlignCenter, "Value");
-    m_painter->drawText(QRect(vw()/8*7, vh()/height*9.5, vw()/8, vh()/height), Qt::AlignCenter, "Clock(deg)");
+    m_painter->drawText(QRect(vw()/2, vh()/height*10.5, vw()/4, vh()/height), Qt::AlignCenter, "Seidel");
+    m_painter->drawText(QRect(vw()/64*47, vh()/height*10.5, vw()/8, vh()/height), Qt::AlignCenter, "Value");
+    m_painter->drawText(QRect(vw()/8*7, vh()/height*10.5, vw()/8, vh()/height), Qt::AlignCenter, "Clock(deg)");
 
     setFont(60);
-    m_painter->drawText(QRect(vw()/2, vh()/height*10.5, vw()/4, vh()/height), Qt::AlignCenter, "Tilt");
-    m_painter->drawText(QRect(vw()/2, vh()/height*11.5, vw()/4, vh()/height), Qt::AlignCenter, "Focus");
-    m_painter->drawText(QRect(vw()/2, vh()/height*12.5, vw()/4, vh()/height), Qt::AlignCenter, "Astigmatism");
-    m_painter->drawText(QRect(vw()/2, vh()/height*13.5, vw()/4, vh()/height), Qt::AlignCenter, "Coma");
-    m_painter->drawText(QRect(vw()/2, vh()/height*14.5, vw()/4, vh()/height), Qt::AlignCenter, "Spherical");
+    m_painter->drawText(QRect(vw()/2, vh()/height*11.5, vw()/4, vh()/height), Qt::AlignCenter, "Tilt");
+    m_painter->drawText(QRect(vw()/2, vh()/height*12.5, vw()/4, vh()/height), Qt::AlignCenter, "Focus");
+    m_painter->drawText(QRect(vw()/2, vh()/height*13.5, vw()/4, vh()/height), Qt::AlignCenter, "Astigmatism");
+    m_painter->drawText(QRect(vw()/2, vh()/height*14.5, vw()/4, vh()/height), Qt::AlignCenter, "Coma");
+    m_painter->drawText(QRect(vw()/2, vh()/height*15.5, vw()/4, vh()/height), Qt::AlignCenter, "Spherical");
 
-    m_painter->drawText(QRect(vw()/64*47, vh()/height*10.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(0));
-    m_painter->drawText(QRect(vw()/64*47, vh()/height*11.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(1));
-    m_painter->drawText(QRect(vw()/64*47, vh()/height*12.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(2));
-    m_painter->drawText(QRect(vw()/64*47, vh()/height*13.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(3));
-    m_painter->drawText(QRect(vw()/64*47, vh()/height*14.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(4));
+    m_painter->drawText(QRect(vw()/64*47, vh()/height*11.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(0));
+    m_painter->drawText(QRect(vw()/64*47, vh()/height*12.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(1));
+    m_painter->drawText(QRect(vw()/64*47, vh()/height*13.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(2));
+    m_painter->drawText(QRect(vw()/64*47, vh()/height*14.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(3));
+    m_painter->drawText(QRect(vw()/64*47, vh()/height*15.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(4));
 
-    m_painter->drawText(QRect(vw()/8*7, vh()/height*10.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(5));
-    m_painter->drawText(QRect(vw()/8*7, vh()/height*11.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(6));
-    m_painter->drawText(QRect(vw()/8*7, vh()/height*12.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(7));
-    m_painter->drawText(QRect(vw()/8*7, vh()/height*13.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(8));
-    m_painter->drawText(QRect(vw()/8*7, vh()/height*14.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(9));
+    m_painter->drawText(QRect(vw()/8*7, vh()/height*11.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(5));
+    m_painter->drawText(QRect(vw()/8*7, vh()/height*12.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(6));
+    m_painter->drawText(QRect(vw()/8*7, vh()/height*13.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(7));
+    m_painter->drawText(QRect(vw()/8*7, vh()/height*14.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(8));
+    m_painter->drawText(QRect(vw()/8*7, vh()/height*15.5, vw()/8, vh()/height), Qt::AlignCenter, list.at(9));
 }
 
 void BPdfCreater::drawResultInfo(QVector<QStringList> &vec)
 {
     setPen(4, Qt::darkGray, Qt::DotLine);
-    m_painter->drawLine(QPointF(vw()/2+20, vh()/height*17), QPointF(vw()-20, vh()/height*17));
-    m_painter->fillRect(QRectF(vw()/2, vh()/height*16, vw()/2, vh()/height), QBrush(Qt::gray));
+    m_painter->drawLine(QPointF(vw()/2+20, vh()/height*18), QPointF(vw()-20, vh()/height*18));
+    m_painter->fillRect(QRectF(vw()/2, vh()/height*17, vw()/2, vh()/height), QBrush(Qt::gray));
 
     setPen(5, Qt::black);
     setFont(80, true);
-    m_painter->drawText(QRect(vw()/2, vh()/height*16, vw()/4, vh()/height), Qt::AlignCenter, "Result");
+    m_painter->drawText(QRect(vw()/2, vh()/height*17, vw()/4, vh()/height), Qt::AlignCenter, "Result");
 
     QStringList list = vec.at(0);
     QStringList vulist = vec.at(1);
@@ -217,28 +220,28 @@ void BPdfCreater::drawResultInfo(QVector<QStringList> &vec)
         setFont(60);
         for ( int i = 0; i < list.size(); ++i )
         {
-            m_painter->drawText(QRect(vw()/2, vh()/height*(17+i), vw()/4, vh()/height), Qt::AlignCenter, list.at(i));
+            m_painter->drawText(QRect(vw()/2, vh()/height*(18+i), vw()/4, vh()/height), Qt::AlignCenter, list.at(i));
         }
         for ( int i = 0; i < vulist.size(); ++i )
         {
-            m_painter->drawText(QRect(vw()/4*3, vh()/height*(17+i), vw()/4, vh()/height), Qt::AlignCenter, vulist.at(i));
+            m_painter->drawText(QRect(vw()/4*3, vh()/height*(18+i), vw()/4, vh()/height), Qt::AlignCenter, vulist.at(i));
         }
     } else {
         for ( int i = 0; i < list.size(); ++i )
         {
             setFont(list.at(i).size() > 14 ? 46 : 60);
             if ( i < 6 ) {
-                m_painter->drawText(QRect(vw()/2, vh()/height*(17+i), vw()/9, vh()/height), Qt::AlignCenter, list.at(i));
+                m_painter->drawText(QRect(vw()/2, vh()/height*(18+i), vw()/9, vh()/height), Qt::AlignCenter, list.at(i));
             } else {
-                m_painter->drawText(QRect(vw()/18*14, vh()/height*(17+i-6), vw()/9, vh()/height), Qt::AlignCenter, list.at(i));
+                m_painter->drawText(QRect(vw()/18*14, vh()/height*(18+i-6), vw()/9, vh()/height), Qt::AlignCenter, list.at(i));
             }
         }
         for ( int i = 0; i < vulist.size(); ++i )
         {
-            if ( i < 5 ) {
-                m_painter->drawText(QRect(vw()/18*11, vh()/height*(17+i), vw()/9, vh()/height), Qt::AlignCenter, vulist.at(i));
+            if ( i < 6 ) {
+                m_painter->drawText(QRect(vw()/18*11, vh()/height*(18+i), vw()/9, vh()/height), Qt::AlignCenter, vulist.at(i));
             } else {
-                m_painter->drawText(QRect(vw()/9*8, vh()/height*(17+i-6), vw()/9, vh()/height), Qt::AlignCenter, vulist.at(i));
+                m_painter->drawText(QRect(vw()/9*8, vh()/height*(18+i-6), vw()/9, vh()/height), Qt::AlignCenter, vulist.at(i));
             }
         }
     }
