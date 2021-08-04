@@ -4,7 +4,7 @@
 *
 * function:  测试结果
 *
-* author:    sjt&ztb
+* author:    sjt&ztb（Steven）
 *
 * date:      2021.1.26
 *
@@ -21,6 +21,7 @@
 #include <string>
 #include "zernike.h"
 #include "baseFunc.h"
+#include "psi.h"
 
 // 计算结果的单位类型（ISO的单位是固定的，就是用户输入的ISO波长）
 enum UNIT_TYPE {
@@ -40,6 +41,7 @@ enum GRMS_METHOD {
 // 计算相关结果时，用到的用户设置参数
 struct CALC_RST_INPUT_PARAMS {
 	bool isUseAngleUnit = false;                 // 以角度为单位的标志，true:角度，false:弧度,默认false（TiltClock, AstClock, ComaClock）
+	bool isCircle = false;                       // 掩膜是否为圆形
 	int row = 0;                                 // 计算孔径aperture时，用到的宽度
 	int width = 0;                               // 计算sizeX时用到的宽度
 	int height = 0;                              // 计算sizeY时用到的高度
@@ -541,7 +543,7 @@ public:
 	/**
 	* @brief ParallelTheta
 	* @param paralleltheta unit: s
-	* @param fringes unit: fr
+	* @param tilt unit: 波长632.8
 	* @param refractiveindex
 	* @param diameter unit: mm
 	*/
@@ -549,8 +551,8 @@ public:
 		float tilt,
 		float refractiveindex,
 		float diameter) {
-		paralleltheta = 206.246f *0.6328* tilt / diameter / (refractiveindex - 1.0f);
-		//paralleltheta = 0.206246f * 632.8f *fringes / diameter / (2*refractiveindex );//菲索型是2*n，泰曼型是2*（n-1）。详见论文：《平板玻璃的平行度快速检测研究》
+		paralleltheta = 206.246f *0.6328f* tilt / diameter / (refractiveindex - 1.0f);
+		//paralleltheta = 0.206246f * 632.8f *fringes / diameter / refractiveindex ;//菲索型是2*n，泰曼型是2*（n-1）。详见论文：《平板玻璃的平行度快速检测研究》
 	}
 
 private:

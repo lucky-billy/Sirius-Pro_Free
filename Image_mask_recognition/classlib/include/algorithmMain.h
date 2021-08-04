@@ -4,7 +4,7 @@
 *
 * function:  算法主函数接口
 *
-* author:    sjt&ztb
+* author:    sjt&ztb（Steven）
 *
 * date:      2021.1.26
 *
@@ -24,6 +24,8 @@
 #include "filter.h"
 #include "edgedetector.h"
 #include "result.h"
+#include "baseFunc.h"
+#include "DynamicCarrier.h"
 
 // 孔的类型
 enum HOLE_TYPE {
@@ -35,29 +37,31 @@ enum HOLE_TYPE {
 
 // 配置参数
 struct CONFIG_PARAMS {
+	bool isLog = false;                                    // 判断是否写入log
 	bool isPhaseAverage = false;                           // 判断是否进入位相平均的状态
+	bool isWaveLengthTuning = false;                       // 判断是否进入波长调谐状态
+	bool isDynamicCarrier = false;                         // 判断是否进入动态载波状态
 	bool isEdgeEroding = false;                            // 边缘腐蚀——缩进1个pixel
-	bool isautomask = false;                               // 自动掩膜，跨区解包裹需要。
 	bool isASCFile = false;                                // asc文件的标志（asc文件中的数据，不需要进行相移计算以及解包裹运算）
 	bool checkFlag = false;                                // 检查位相图质量的标志
 	bool removeErrorFlag = false;                          // 移除错误的标志，暂时未用
 	bool removeResidualFlag = false;                       // 移除残差的标志
 	bool isSingleHole = true;                              // 单孔标志，true：单孔，false:多孔（Pro版本标志，true:pro,false:ind）
 	bool isFillSpikes = false;                             // 填充毛刺点的标志，true：填充，false：不填充
-	unsigned int residuesNumThresh = 500;				   // 残差点个数阈值
-	unsigned int span_automask_thresh = 40;                // 间隔区筛选的阈值
+	bool isSyntheticFringes = false;                       // 开启合成条纹功能的标志
 	int zernikeTerm = 37;                                  // zernike多项式的项数
-	int unwrap_max_radius = 5;                             // 枝切法枝切线最大连接半径
 	int edge_erode_r = 1;                                  // 腐蚀尺寸
 	int debugGrade = 0;                                    // 打印信息的标志0：不打印任何信息；1：只打印计算结果；2：打印函数的开始与结束、计算结果；3：打印所有的信息
-	float unwrap_span_adjust = -0.1f;                      // 跨区解包裹法调整因子
+	int fringe_number = 3;                                 // 合成条纹数量
+	float fringe_angle = 0;                                // 合成条纹角度
 	float scaleFactor = 0.5f;                              // 比例因子
 	float highPassFilterCoef = 0.01f;                      // 计算高通滤波半径的系数
 	HOLE_TYPE holeType = HOLE_TYPE_CG;                     // 孔的类型
 	CHECK_THR checkThr;                                    // 相移设置参数
 	PSI_METHOD psiMethod = PSI_METHOD_BUCKET9A_CS_P;       // 相移计算方法
-	UNWRAP_METHOD unwrapMethod = UNWRAP_METHOD_BRANCH_CUT; // 解包裹方法
-	ZERNIKE_METHOD zernikeMethod = ZERNIKE_METHOD_CIRCLE;  // zernike计算方法
+	ZERNIKE_METHOD zernikeMethod = ZERNIKE_METHOD_ORTHO;  // zernike计算方法
+	DC_PARAMS dcParams;                                    // 动态载波相关参数
+	UNWRAP_PARAMS unwrapParams;                            // 解包裹相关参数
 	FILTER_PARAMS filterParams;                            // 滤波去毛刺的参数
 	EDGE_DETEC_PARAMS edgeDetecParams;                     // 边缘检测的相关输入参数 
 	REMOVE_ZERNIKE_FLAGS removeZernikeFlags;               // zernike各种移除项的标志
@@ -79,7 +83,11 @@ public:
 	cv::Mat maskEdge;                                      // mask的边缘，大小等于输入图像的大小
 
 	cv::Mat unwrappedPhase;                                // 相位解包裹后的结果， 大小为输入图像的大小
-	cv::Mat unwrappedPhase_original;                       // 未加任何处理的解包裹结果
+	cv::Mat unwrappedPhase_original;                       // 未加任何处理的解包裹图
+	cv::Mat unwrappedPhase_fillspikes;                     // 填充了毛刺的解包裹图
+	cv::Mat unwrappedPhaseRoi;                             // 裁剪后的解包裹图
+	cv::Mat unwrapHisMask;                                 // 质量图噪声区掩膜
+
 	cv::Mat xSlice;                                        // 某一行的图形切片（单位：波长）
 	cv::Mat ySlice;                                        // 某一列的图形切片（单位：波长）
 	cv::Mat PSD_X;                                         // X切片对应的PSD图（经过对数处理，单位：波长^2*mm）
@@ -95,20 +103,26 @@ public:
 	cv::Mat fittingSurface;                                // zernike拟合的结果， 大小为最小包围圆的外接矩形的大小（单位：波长）
 	cv::Mat zernikeResidual;                               // 残差，大小为最小包围圆的外接矩形的大小（单位：波长）
 	cv::Mat fittingSurface_fillSpikes;                     // 将毛刺点处的值用拟合的结果填充（单位：波长）
-	 
+	cv::Mat fittingSurface_all_fillSpikes;                 // 将毛刺点处的值用拟合的结果填充（单位：波长）,含所有项
+	cv::Mat phase;                                         // 相位数据
+	cv::Mat synthetic_fringe;                              // 合成条纹图
+
 	cv::Mat psf;                                           // PSF
 	cv::Mat psfEnergy;                                     // psf energy
 	cv::Mat mtf;                                           // MTF, 暂时没有计算
+	cv::Mat dcfftlog;                                      // 动态载波技术频谱图（取log）
 	cv::Mat intensity;                                     // intensity, 暂时没有计算，大小为最小包围圆的外接矩形的大小
 	cv::Rect mask_rect;                                    // 掩膜在原图中的位置信息
 
 	ERROR_TYPE errorType = ERROR_TYPE_NOT_ERROR;           // 错误类型
 	TOTAL_RESULT totalResult;                              // 计算的总的结果
 	CONFIG_PARAMS configParams;                            // 配置参数
+	CHECK_RESULT checkResult;                              // check得到的结果
+	DC_SELECT_LOCATION dc_location;                        // 动态载波选取频域的位置信息
 
 public:
 	AlgorithmMain() { }
-
+	AlgorithmMain(const AlgorithmMain & other);
 	AlgorithmMain(CONFIG_PARAMS userSets) : configParams(userSets) {}
 
 	// 算法处理主函数
@@ -132,6 +146,12 @@ private:
 
 	// 根据位相图进行解包裹，得到解包裹后图
 	void processGetUnwrappedPhase(INPUT_DATAS inputDatas);
+
+	// 根据条纹图采用载波技术提取相位，并解包裹、Zernike等
+	void processDynamicCarrier(INPUT_DATAS inputDatas);
+
+	// 根据条纹图采用载波技术提取相位，得到解包裹后图
+	void processGetUnwrappedPhase_DC(INPUT_DATAS inputDatas);
 
 	// 当读取的是asc文件时，算法处理函数
 	void processASCFile(INPUT_DATAS inputDatas);
@@ -172,6 +192,17 @@ private:
 
 	// 打印结果，后期正式版本中，去掉该函数
 	void PrintResult();
+
+	/**
+     * @brief SyntheticFringes      合成条纹
+     * @param fittingsurface        波前
+     * @param ang_roi               Zernike极坐标角度图
+     * @param mag_roi               Zernike极坐标半径图
+     * @param number                合成条纹个数
+     * @param angle                 合成条纹角度
+     * @return                      合成后图像
+     */
+	cv::Mat SyntheticFringes(cv::Mat fittingsurface, const cv::Mat &ang_roi, const cv::Mat &mag_roi, int number=3, float angle=0);
 };
 
 /***********************************************************
@@ -189,8 +220,23 @@ private:
 */
 void calcPsiFilterUnwrapForThread(Psi &psi,
 	Unwrap &unwrap,
+	Filter &filter,
 	const std::vector<cv::Mat> &images_roi,
-	const FILTER_PARAMS &filterParams,
+	const cv::Mat &roiMask);
+
+/**
+* @brief calcDCFilterUnwrapForThread           计算dc,unwrap,filter的线程
+* @param dc                                    动态载波对象
+* @param unwrap                                Unwrap对象
+* @param phase                                 输入数据
+* @param filterParams                          输入滤波参数
+* @param roiMask                               mask
+* @note
+*/
+void calcDCFilterUnwrapForThread(DynamicCarrier &dc,
+	Unwrap &unwrap,
+	Filter &filter,
+	const cv::Mat &phase,
 	const cv::Mat &roiMask);
 
 /**
@@ -205,21 +251,5 @@ void calcZernikeForThread(Zernike &zernike,
 	const cv::Mat &ang_roi,
 	const cv::Mat& mag_roi,
 	const cv::Mat &roiMask);
-
-// 在算法中开辟多线程，
-void mulHolesForThread(AlgorithmMain &algorithm,
-	const INPUT_DATAS &inputDatas);
-
-// 在算法中开辟多线程，再封装一层算法
-class AlgorithmMainForThread {
-public:
-	std::vector<AlgorithmMain> algorithmList;                  // 算法分析的对象
-	std::vector<cv::Mat> imageList;                            // 原始数据,
-	std::vector<cv::Rect> roiList;                             // 截取图像参数
-	cv::Mat mask;
-public:
-	AlgorithmMainForThread() {}
-	void operator()();
-};
 
 #endif

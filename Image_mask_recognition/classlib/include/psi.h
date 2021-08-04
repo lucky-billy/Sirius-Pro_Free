@@ -4,7 +4,7 @@
 *
 * function:  (Phase shift interferometry)计算干涉图中各点的相位
 *
-* author:    sjt&ztb
+* author:    sjt&ztb（Steven）
 *
 * date:      2021.1.26
 *
@@ -34,26 +34,45 @@
 // 相移方法
 enum PSI_METHOD{
 	PSI_METHOD_BUCKET4A_P = 0,
-	PSI_METHOD_BUCKETB5A_H_P,
+	PSI_METHOD_BUCKET5A_H_P,
 	PSI_METHOD_BUCKET5B_CS_P,
 	PSI_METHOD_BUCKET9A_CS_P,
 	PSI_METHOD_BUCKET9B_CS_P,
-	PSI_METHOD_OPT_SEQUENCE
+	PSI_METHOD_OPT_SEQUENCE,
+	PSI_METHOD_9A_AIA,
+	PSI_METHOD_WAVELNTUNING,
+	PSI_METHOD_9A_AIA_PRO,
+};
+
+// check功能的判断阈值
+struct CHECK_THR {
+	int phaseShiftThr = 10;                       // 相移偏差角度阈值
+	float stdPhaseHistThr = 0.01f;               // 相移角度直方图的标准差阈值
+	float resPvThr = 0.095f;                     // 残差pv的阈值
+	float resRmsThr = 0.018f;                    // 残差rms的阈值
+};
+
+struct CHECK_RESULT {
+	float result_shift = 0.0f;
+	float result_std = 0.0f;
 };
 
 class Psi {
 public:
-	bool checkFalg;                                 // 是否进行相移检查
+	bool checkFlag;                                 // 是否进行相移检查
 	bool isSingleHole;                              // 单孔标志，true：单孔，false:多孔
+	bool WaveLnTuningFlag;                          // 是否波长调谐
+	float WaveLnTuning_shift{PI/2};                 // 波长调谐移相序列间隔
 	cv::Mat phaseModulation;                        // 信号调制
 	cv::Mat phase;                                  // 相移
 	ERROR_TYPE errorType;                           // 错误类型
 	PSI_METHOD psiMethod;                           // psi方法
 	CHECK_THR checkThr;                             // check功能的阈值
+	CHECK_RESULT checkresult;                       // check结果：shift和std值
 
 public:
-	Psi(bool isCheck, PSI_METHOD method, bool singleHoleFlag, CHECK_THR thr)
-		: checkFalg(isCheck), psiMethod(method), isSingleHole(singleHoleFlag), checkThr(thr) {}
+	Psi(bool isCheck, PSI_METHOD method, bool singleHoleFlag, CHECK_THR thr,bool isWaveLnTuning)
+		: checkFlag(isCheck), psiMethod(method), isSingleHole(singleHoleFlag), checkThr(thr) , WaveLnTuningFlag(isWaveLnTuning){}
 	
 	/**
 	* @brief PsiProcess        psi算法接口，计算包裹相位与相位调制度 gama = I'' / I'
@@ -77,10 +96,13 @@ public:
 	inline unsigned int imgNum() {
 		switch (psiMethod) {
 		case PSI_METHOD_BUCKET4A_P:  return 4;
-		case PSI_METHOD_BUCKETB5A_H_P:
+		case PSI_METHOD_BUCKET5A_H_P:
 		case PSI_METHOD_BUCKET5B_CS_P: return 5;
 		case PSI_METHOD_BUCKET9A_CS_P:
+		case PSI_METHOD_9A_AIA:
+		case PSI_METHOD_9A_AIA_PRO:
 		case PSI_METHOD_BUCKET9B_CS_P: return 9;
+		case PSI_METHOD_WAVELNTUNING:
 		case PSI_METHOD_OPT_SEQUENCE: return 5;
 		default:
 			return 0;
@@ -98,6 +120,34 @@ private:
 	void AIA(std::vector<cv::Mat> srcs, cv::Mat mask, int iterNum);
 	
 	/**
+	* @brief AIA2              二代相移迭代算法
+	* @param srcs              输入的图像
+	* @param mask              输入的mask
+	* @param iterNum           迭代次数
+	* @return
+	*/
+	void AIA2(std::vector<cv::Mat> srcs, cv::Mat mask, int iterNum);
+
+	/**
+	* @brief AIA               相移迭代算法
+	* @param srcs              输入的图像
+	* @param mask              输入的mask
+	* @param iterNum           迭代次数
+	* @return
+	*/
+	void AIA_PRO(std::vector<cv::Mat> srcs, cv::Mat mask, int iterNum);
+
+	/**
+	* @brief WaveLnTuning      波长调谐算法
+	* @param srcs              输入的图像
+	* @param mask              输入的mask
+	* @param iterNum           迭代次数
+	* @param delt              移相间隔
+	* @return
+	*/
+	void WaveLnTuning(std::vector<cv::Mat> srcs, cv::Mat mask, int iterNum, float delt);
+
+	/**
 	* @brief Todelta           由相位分布求解移相量
 	* @param delta             移项角度
 	* @param srcs              输入的图像
@@ -110,6 +160,9 @@ private:
 	
 	// 由相位分布求解移相量 (速度较快)
 	void Todelta2(float *delta, std::vector<cv::Mat> srcs, cv::Mat mask, float *a, float *b);
+
+	// 由相位分布求解移相量 (速度较快)
+	void Todelta2Pro(float *delta, std::vector<cv::Mat> srcs, cv::Mat mask, float *a, float *b);
 
 	/**
 	* @brief Todelta           由移相量求解相位分布
@@ -125,8 +178,11 @@ private:
 	// 由移相量求解相位分布 (速度较快)
 	void Tophase2(float *delta, std::vector<cv::Mat> srcs, cv::Mat mask, float *a, float *b);
 
-	// 由移相量求解相位分布 (速度最快)
+	// 由移相量求解相位分布 (速度更快)
 	void Tophase3(float *delta, std::vector<cv::Mat> srcs, cv::Mat mask, float *a, float *b);
+
+	// 由移相量求解相位分布 (速度最快)
+	void Tophase3Pro(float *delta, std::vector<cv::Mat> srcs, cv::Mat mask, float *a, float *b);
 
 	/**
 	* @brief findGoodPics      找到相移较好的图像
@@ -154,6 +210,21 @@ private:
 		cv::Mat mask,
 		float data[2][5],
 		int idx);
+
+	/**
+	* @brief calcShift         计算移相量
+	* @param srcs0             输入的图像0
+	* @param srcs1             输入的图像1
+	* @param srcs3             输入的图像3
+	* @param srcs4             输入的图像4
+	* @param mask              输入的mask
+	* @return                  移相量
+	*/
+	float calcShift(cv::Mat srcs0,
+		cv::Mat srcs1,
+		cv::Mat srcs3,
+		cv::Mat srcs4,
+		cv::Mat mask);
 
 	/**
 	* @brief checkPsi          检查相移是否准确

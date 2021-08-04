@@ -33,7 +33,9 @@ SOURCES += \
 
 HEADERS += \
     classlib/include/algorithmMain.h \
+    classlib/include/AngleCalculation.h \
     classlib/include/baseFunc.h \
+    classlib/include/DynamicCarrier.h \
     classlib/include/edgedetector.h \
     classlib/include/filter.h \
     classlib/include/psf.h \
@@ -41,7 +43,9 @@ HEADERS += \
     classlib/include/pztcalibrate.h \
     classlib/include/result.h \
     classlib/include/splice.h \
+    classlib/include/ThreeFlats.h \
     classlib/include/unwrap.h \
+    classlib/include/WaveLengthTuning.h \
     classlib/include/zernike.h \
     custom/blog.h \
     custom/bpdfcreater.h \

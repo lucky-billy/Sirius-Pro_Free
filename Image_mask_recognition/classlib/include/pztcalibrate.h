@@ -4,7 +4,7 @@
 *
 * function:  移相器标定算法
 *
-* author:    sjt&ztb
+* author:    sjt&ztb（Steven）
 *
 * date:      2021.1.26
 *

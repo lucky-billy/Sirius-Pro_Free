@@ -4,7 +4,7 @@
 *
 * function:  相位解包裹
 *
-* author:    sjt&ztb
+* author:    sjt&ztb（Steven）
 *
 * date:      2021.1.26
 *
@@ -24,37 +24,45 @@ using namespace std;
 
 enum UNWRAP_METHOD {
 	UNWRAP_METHOD_BRANCH_CUT = 0,          //枝切法
-	UNWRAP_METHOD_HISTOGRAM=1,             //质量图（未完成）
+	UNWRAP_METHOD_HISTOGRAM=1,             //质量图
 	UNWRAP_METHOD_SPAN_BRANCH_CUT=2,       //跨区枝切法
 	UNWRAP_METHOD_DCT=3,                   //DCT全局法（待完善）
-	UNWRAP_METHOD_RESERVE3
+	UNWRAP_METHOD_HISTOGRAM_PRO=4          //质量图（去除异常区）
+};
+struct UNWRAP_PARAMS {
+	// 枝切法解包裹算法相关
+	int maxBoxRadius=5;                                     // 枝切法解包裹的最大搜索框的半径
+	int residuesNumThresh=500;                              // 残差点个数阈值
+	// 跨区解包裹算法相关
+	float unwrap_span_adjust =-0.1f;                        // 跨区枝切法的周期调整因子
+	int span_automask_thresh=40;
+	// 质量图解包裹算法相关
+    float histThresh = float(3 * CV_PI * CV_PI);
+	int nbrOfSmallBins = 10;
+	int nbrOfLargeBins = 5;
+	// 解包裹方法
+	UNWRAP_METHOD unwrapMethod= UNWRAP_METHOD_BRANCH_CUT;   // 解包裹的方法
 };
 
 class Unwrap {
 public:
-	ERROR_TYPE errorType;                  // 错误类型
-	UNWRAP_METHOD unwrapMethod;            // 解包裹的方法
-	cv::Mat unwrappedPhase;                // 解包裹后的相位
-	cv::Mat unwrappedPhase_original;       // 存储原始解包裹后的相位
-	int maxBoxRadius;                      // 枝切法解包裹的最大搜索框的半径
-	int residuesNumThresh;                 // 残差点个数阈值
 	int rowref;                            // 参考起始点的行坐标
 	int colref;                            // 参考起始点的列坐标
-	float adjust;                          // 跨区枝切法的周期调整因子
+	cv::Mat unwrappedPhase;                // 解包裹后的相位
+	cv::Mat unwrappedPhase_original;       // 存储原始解包裹后的相位
+	cv::Mat histogram_mask;
+	UNWRAP_PARAMS unwrapParams;           // 解包裹参数
+	ERROR_TYPE errorType;                  // 错误类型	
 
 public:
-	Unwrap(int inputBoxRadius = 20, int inputThresh = 150, float inputadjust=0.05,UNWRAP_METHOD Method = UNWRAP_METHOD_BRANCH_CUT)
-		: maxBoxRadius(inputBoxRadius), residuesNumThresh(inputThresh),adjust(inputadjust), unwrapMethod(Method){}
-
+	Unwrap(UNWRAP_PARAMS params): unwrapParams(params){}
 	/**
 	* @brief UnwrapProcess            解包裹主运行程序
 	* @param phase                    包裹相位
 	* @param modulation               调制度
 	* @Param mask                     掩膜
 	*/
-	void UnwrapProcess(cv::Mat &phase,
-		const cv::Mat &modulation,
-		const cv::Mat &mask);
+	void UnwrapProcess(cv::Mat &phase, const cv::Mat &modulation, const cv::Mat &mask);
 
 	// 点与点的求余运算 a / b
 	inline float modf(float a, float b) {
@@ -108,7 +116,7 @@ private:
 	* @Param mask                     掩膜
 	* @return                         
 	*/
-	int UnwrapBranchCuts(cv::Mat &phase,
+	void UnwrapBranchCuts(cv::Mat &phase,
 		const cv::Mat &modulation,
 		const cv::Mat &mask);
 
@@ -268,6 +276,127 @@ private:
 	//void DctProcess(cv::Mat &phase,
 	//	const cv::Mat &modulation,
 	//	const cv::Mat &mask);
+
+	/*--------------------- 质量图解包裹-------------------------*/
+	/**
+	* @brief UnwrapHistogram          质量图解包裹
+	* @param phase                    包裹相位
+	* @Param mask                     掩膜
+	* @Param histthresh  
+	* @Param nbrOfSmallBins
+	* @Param nbrOfLargeBins
+	*/
+	int UnwrapHistogram(cv::Mat &phase, const cv::Mat &mask,float histthresh, int nbrOfSmallBins,int nbrOfLargeBins);
+
+	void computePixelsReliability(cv::Mat &phase, cv::Mat &mask);
+
+	void computeEdgesReliabilityAndCreateHistogram(float histthresh, int nbrOfSmallBins, int nbrOfLargeBins);
+
+	void createAndSortEdge(int idx1, int idx2,int nbrOfSmallBins);
+
+	void unwrapHistogram();
+
+	void addIncrement(cv::Mat &unwrappedPhaseMap);
+
+	int findInc(float a, float b);
+
+	float wrap(float a, float b);
+
+	class Pixel
+	{
+	private:
+		// Value from the wrapped phase map
+		float phaseValue;
+		// Id of a pixel. Computed from its position in the Mat
+		int idx;
+		// Pixel is valid if it's not in a shadow region
+		bool valid;
+		// "Quality" parameter. See reference paper
+		float inverseReliability;
+		// Number of 2pi  that needs to be added to the pixel to unwrap the phase map
+		int increment;
+		// Number of pixels that are in the same group as the current pixel
+		int nbrOfPixelsInGroup;
+		// Group id. At first, group id is the same value as idx
+		int groupId;
+		// Pixel is alone in its group
+		bool singlePixelGroup;
+	public:
+		Pixel();
+		Pixel(float pV, int id, bool v, float iR, int inc);
+		float getPhaseValue();
+		int getIndex();
+		bool getValidity();
+		float getInverseReliability();
+		int getIncrement();
+		int getNbrOfPixelsInGroup();
+		int getGroupId();
+		bool getSinglePixelGroup();
+		void setIncrement(int inc);
+		// When a pixel which is not in a single group is added to a new group, we need to keep the previous increment and add "inc" to it.
+		void changeIncrement(int inc);
+		void setNbrOfPixelsInGroup(int nbr);
+		void setGroupId(int gId);
+		void setSinglePixelGroup(bool s);
+	};
+
+	class Edge
+	{
+	private:
+		// Id of the first pixel that forms the edge
+		int pixOneId;
+		// Id of the second pixel that forms the edge
+		int pixTwoId;
+		// Number of 2pi that needs to be added to the second pixel to remove discontinuities
+		int increment;
+	public:
+		Edge();
+		Edge(int p1, int p2, int inc);
+		int getPixOneId();
+		int getPixTwoId();
+		int getIncrement();
+	};
+
+	// Class describing a bin from the histogram
+	class HistogramBin
+	{
+	private:
+		float start;
+		float end;
+		std::vector<Edge> edges;
+	public:
+		HistogramBin();
+		HistogramBin(float s, float e);
+		void addEdge(Edge e);
+		std::vector<Edge> getEdges();
+	};
+
+	// Class describing the histogram. Bins before "thresh" are smaller than the one after "thresh" value
+	class Histogram
+	{
+	private:
+		std::vector<HistogramBin> bins;
+		float thresh;
+		float smallWidth;
+		float largeWidth;
+		int nbrOfSmallBins;
+		int nbrOfLargeBins;
+		int nbrOfBins;
+	public:
+		Histogram();
+		void createBins(float t, int nbrOfBinsBeforeThresh, int nbrOfBinsAfterThresh);
+		void addBin(HistogramBin b);
+		void addEdgeInBin(Edge e, int binIndex);
+		float getThresh();
+		float getSmallWidth();
+		float getLargeWidth();
+		int getNbrOfBins();
+		std::vector<Edge> getEdgesFromBin(int binIndex);
+	};
+
+private:
+	vector< Pixel> pixels;
+	Histogram histogram;
 };
 
 #endif // UNWRAP_H

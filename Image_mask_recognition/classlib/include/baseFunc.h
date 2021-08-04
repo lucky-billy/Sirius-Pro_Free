@@ -4,7 +4,7 @@
 *
 * function:  存放基础函数
 *
-* author:    sjt&ztb
+* author:    sjt&ztb（Steven）
 *
 * date:      2021.1.26
 *
@@ -19,13 +19,28 @@
 #define BASEFUNC_H
 
 #include <opencv2/opencv.hpp>
-#include <fstream>
-#include <sstream>
 #include <opencv2/imgproc/imgproc.hpp>    
 #include <opencv2/highgui/highgui.hpp> 
+#include <opencv2/core/core.hpp>
+#include <fstream>
+#include <sstream>
 #include <iostream>
 #include <algorithm>
 #include <vector>
+#include <unordered_map>
+#include <unordered_set>
+#include <stdio.h>
+#include <io.h>
+#include <chrono> 
+#include <time.h>
+#include <ctime>
+#include <direct.h>
+#include <functional>
+#include <omp.h>
+#include <Windows.h>
+
+using namespace std;
+#pragma warning(disable:4996)
 
 #define SQRT_1  1.00000000f
 #define SQRT_2  1.41421356f
@@ -97,26 +112,23 @@
 
 // 错误类型
 enum ERROR_TYPE {
-	ERROR_TYPE_NOT_ERROR = 0,
-	ERROR_TYPE_NO_ENOUGH_IMAGES,
-	ERROR_TYPE_NO_MASK,
-	ERROR_TYPE_ROI_TOO_SMALL,
-	ERROR_TYPE_PSI_ERROR,
-	ERROR_TYPE_UNWRAP_ERROR,
-	ERROR_TYPE_ZERNIKE_ERROR,
-	ERROR_TYPE_CHECK,
-	ERROR_TYPE_SPIKES_TOO_MUCH,
-	ERROR_TYPE_NOT_AUTOMASK,
-	ERROR_TYPE_PIC_SIZE,
-	ERROR_TYPE_NO_RESULT
-};
-
-// check功能的判断阈值
-struct CHECK_THR {
-	int phaseShiftThr = 10;                       // 相移偏差角度阈值
-	float stdPhaseHistThr = 0.01f;               // 相移角度直方图的标准差阈值
-	float resPvThr = 0.095f;                     // 残差pv的阈值
-	float resRmsThr = 0.018f;                    // 残差rms的阈值
+	ERROR_TYPE_NOT_ERROR = 0,             
+	ERROR_TYPE_NO_ENOUGH_IMAGES=1,
+	ERROR_TYPE_NO_MASK=2,
+	ERROR_TYPE_ROI_TOO_SMALL=3,
+	ERROR_TYPE_PSI_ERROR=4,
+	ERROR_TYPE_UNWRAP_ERROR=5,
+	ERROR_TYPE_ZERNIKE_ERROR=6,
+	ERROR_TYPE_CHECK=7,
+	ERROR_TYPE_SPIKES_TOO_MUCH=8,
+	ERROR_TYPE_NOT_AUTOMASK=9,
+	ERROR_TYPE_PIC_SIZE=10,
+	ERROR_TYPE_NO_RESULT=11,
+	ERROR_TYPE_SETTING=12,
+	ERROR_TYPE_PIC_NUM=13,
+	ERROR_TYPE_FILTER_TOO_LARGE=14,
+	ERROR_TYPE_FILTER_TOO_SMALL=15,
+	ERROR_TYPE_FILTER_ERROR=16,
 };
 
 // 基础函数
@@ -158,7 +170,19 @@ public:
 	 */
 	static void UnitPolar(const cv::Mat& x, const cv::Mat& y,
 		cv::Mat& mag, cv::Mat& ang, bool indegree = false) {
-		cv::cartToPolar(x, y, mag, ang, indegree);   //直角坐标转换为极坐标
+		//cv::cartToPolar(x, y, mag, ang, indegree);   //直角坐标转换为极坐标
+		mag = cv::Mat(x.size(), x.type());
+		ang = cv::Mat(x.size(), x.type());
+		int row = mag.rows;
+		int col = mag.cols;
+		for (int i = 0; i < row; ++i)
+		{
+			for (int j = 0; j < col; ++j)
+			{
+				mag.at<float>(i, j) = sqrt(x.at<float>(i, j)*x.at<float>(i, j) + y.at<float>(i, j)*y.at<float>(i, j));
+				ang.at<float>(i, j) = atan2(y.at<float>(i, j), x.at<float>(i, j));
+			}
+		}
 	}
 
 	/**
@@ -173,7 +197,27 @@ public:
 		cv::Mat x;
 		cv::Mat y;
 		UnitCart(squaresize, x, y);                //产生指定范围内的指定数量点数，相邻数据跨度相同
-		cv::cartToPolar(x, y, mag, ang, indegree); //坐标转换
+		// OpenCV自带的转换有精度限制，导致结果有一定差异性
+		//cv::cartToPolar(x, y, mag, ang, false); //坐标转换
+
+		mag = cv::Mat(x.size(), x.type());
+		ang = cv::Mat(x.size(), x.type());
+		int row = mag.rows;
+		int col = mag.cols;
+		float *m, *a, *xx, *yy;
+		for (int i = 0; i < row; ++i)
+		{
+			m = mag.ptr<float>(i);
+			a = ang.ptr<float>(i);
+			xx = x.ptr<float>(i);
+			yy = y.ptr<float>(i);
+			for (int j = 0; j < col; ++j)
+			{
+				m[j] = sqrt(xx[j] * xx[j] + yy[j] * yy[j]);
+				a[j] = atan2(yy[j], xx[j]);
+			}
+		}
+
 	}
 
 	/**
@@ -243,7 +287,7 @@ public:
 		float newWidth = rotatedRect.size.width - chamferRadius * 2.0f;
 		float newHeight = rotatedRect.size.height - chamferRadius * 2.0f;
 
-		radius = (int)(std::sqrtf(newWidth * newWidth + newHeight * newHeight) / 2.0f + chamferRadius * 2.0f);
+		radius = (int)(std::sqrtf(newWidth * newWidth + newHeight * newHeight) / 2.0f + chamferRadius);
 		return cv::Rect(center.x - radius, center.y - radius, radius * 2 + 1, radius * 2 + 1);
 	}
 
@@ -258,8 +302,10 @@ public:
 	static cv::Mat GridSampling(const cv::Size& size, int rowinterval, int colinterval) {
 		cv::Mat dst(size, CV_8UC1, cv::Scalar(0));
 		//设置采样的位置点
-		for (int row = 0; row < dst.rows; row += rowinterval) {
-			for (int col = 0; col < dst.cols; col += colinterval) {
+		int Row = dst.rows;
+		int Col = dst.cols;
+		for (int row = 0; row < Row; row += rowinterval) {
+			for (int col = 0; col < Col; col += colinterval) {
 				dst.at<uchar>(row, col) = 255;
 			}
 		}
@@ -298,14 +344,14 @@ public:
 		return mag;
 	}
 
-	/*--------------------- other functions -------------------------*/
+	/*--------------------- Image Processing functions -------------------------*/
 	/**
-	* @brief MorphOpenMask                     为消除孤立的小点，毛刺和小桥影响，对mask进行开运算
-	* @param mask                              mask
-	* @param shape                             形状
-	* @param times                             迭代次数
-	* @return
-	*/
+	 * @brief MorphOpenMask                     为消除孤立的小点，毛刺和小桥影响，对mask进行开运算
+	 * @param mask                              mask
+	 * @param shape                             形状
+	 * @param times                             迭代次数
+	 * @return
+	 */
 	static void MorphOpenMask(cv::Mat &mask, int shape, int size, int times)
 	{
 		//获得shape形，大小为size*size的模板
@@ -314,6 +360,446 @@ public:
 		morphologyEx(mask, mask, cv::MORPH_OPEN, element, cv::Point(-1, -1), times);
 	}
 
+	/**
+	 * @brief MorphErodeMask                    腐蚀操作
+	 * @param mask                              mask
+	 * @param shape                             形状
+	 * @param times                             迭代次数
+	 * @return
+	 */
+	static void MorphErodeMask(cv::Mat &mask, int shape, int size, int times)
+	{
+		//获得shape形，大小为size*size的模板
+		cv::Mat element = cv::getStructuringElement(shape, cv::Size(size, size));
+		//进行开运算，迭代times次
+		morphologyEx(mask, mask, cv::MORPH_ERODE, element, cv::Point(-1, -1), times);
+	}
+
+	/**
+	 * @brief Rotate                            图像旋转
+	 * @param srcImage                          待旋转图像
+	 * @param dstImage                          旋转后的图像
+	 * @param angle                             旋转角度（正数为逆时针，负数为顺时针）
+	 * @return
+	 */
+	static void Rotate(const cv::Mat &srcImage, cv::Mat &dstImage, double angle)
+	{
+		cv::Point2f center(srcImage.cols / 2.0f, srcImage.rows / 2.0f);//中心
+		cv::Mat M = cv::getRotationMatrix2D(center, angle, 1);//计算旋转的仿射变换矩阵 
+		cv::warpAffine(srcImage, dstImage, M, cv::Size(srcImage.cols, srcImage.rows));//仿射变换  
+	}
+
+	/**
+	 * @brief Rotate2                           图像旋转
+	 * @param srcImage                          待旋转图像
+	 * @param dstImage                          旋转后的图像
+	 * @param angle                             旋转角度（正数为逆时针，负数为顺时针）
+	 * @param center                            旋转中心
+	 * @return
+	 */
+	static void Rotate2(const cv::Mat &srcImage, cv::Mat &dstImage, double angle, cv::Point2f center)
+	{
+		cv::Mat M = cv::getRotationMatrix2D(center, angle, 1);//计算旋转的仿射变换矩阵 
+		cv::warpAffine(srcImage, dstImage, M, cv::Size(srcImage.cols, srcImage.rows));//仿射变换  
+	}
+
+	/**
+	 * @brief FindTestArea                      寻找测试区域(图像错位相加再叠加)
+	 * @param images                            图像组
+	 * @param mask                              掩膜
+	 * @return                                  测试区域
+	 */
+	static cv::Mat FindTestArea(vector<cv::Mat> images, const cv::Mat mask)
+	{
+		CV_Assert(images.size() > 3);
+		// 克隆，防止对原始数据破坏
+		cv::Mat src0 = images[0].clone();
+		cv::Mat src1 = images[1].clone();
+		cv::Mat src2 = images[2].clone();
+		cv::Mat src3 = images[3].clone();
+		cv::Mat element = getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
+		// 开运算是为了让图像整体性提高
+		cv::morphologyEx(src0, src0, cv::MORPH_OPEN, element, { -1,-1 }, 1);
+		cv::morphologyEx(src1, src1, cv::MORPH_OPEN, element, { -1,-1 }, 1);
+		cv::morphologyEx(src2, src2, cv::MORPH_OPEN, element, { -1,-1 }, 1);
+		cv::morphologyEx(src3, src3, cv::MORPH_OPEN, element, { -1,-1 }, 1);
+
+		cv::Mat abs_sub_13, abs_sub_24;
+		abs_sub_13 = abs(src0 - src2);
+		abs_sub_24 = abs(src1 - src3);
+		cv::Mat dst = abs_sub_13 + abs_sub_24;
+		dst.convertTo(dst, CV_8UC1);
+		cv::medianBlur(dst, dst, 3);
+		cv::threshold(dst, dst, 100, 255, cv::THRESH_TRIANGLE);      //阈值运算(三角法)
+		dst = dst & mask;
+		return dst;
+	}
+
+	/**
+	 * @brief calcBRMS                          计算BRMS-图像亮度均方值
+	 * @param images                            图组
+	 * @param mask                              掩膜
+	 * @return                                  SRMS
+	 */
+	static float calcBRMS(vector<cv::Mat> images, cv::Mat mask)
+	{
+		vector<cv::Point> points;
+		cv::findNonZero(mask, points);
+		if (points.size() == 0)
+		{
+			return -1;
+		}
+		int row = mask.rows;
+		int col = mask.cols;
+		float BRMSsum = 0.0f;
+		cv::Mat temp;
+		int number_size = (int)(images.size());
+		for (int i = 0; i < number_size; ++i)
+		{
+			temp= images[i].clone();
+			for (int m = 0; m < row; ++m)
+			{
+				for (int n = 0; n < col; ++n)
+				{
+					if (mask.at<uchar>(m, n) == 255)
+					{
+						temp.at<float>(m, n) = pow(temp.at<float>(m, n), 2);
+					}
+				}
+			}
+			BRMSsum += std::sqrt((float)(cv::mean(temp, mask == 255)[0]));
+		}
+		float BRMS = BRMSsum / (int)(images.size());
+		return BRMS;
+	}
+
+	/**
+     * @brief calcBRMS_Mean                     计算calcBRMS_Mean-图像亮度均方值除以平均值
+     * @param images                            图组
+     * @param mask                              掩膜
+     * @return                                  SRMS
+     */
+	static float calcBRMS_Mean(vector<cv::Mat> images, cv::Mat mask)
+	{
+		vector<cv::Point> points;
+		cv::findNonZero(mask, points);
+		if (points.size() == 0)
+		{
+			return -1;
+		}
+		int row = mask.rows;
+		int col = mask.cols;
+		float BRMS_Meansum = 0.0f;
+		cv::Mat temp;
+		int number_size = (int)(images.size());
+		for (int i = 0; i < number_size; ++i)
+		{
+			float average = (float)(cv::mean(images[i], mask == 255)[0]);
+			temp = images[i].clone();
+			for (int m = 0; m < row; ++m)
+			{
+				for (int n = 0; n < col; ++n)
+				{
+					if (mask.at<uchar>(m, n) == 255)
+					{
+						temp.at<float>(m, n) = pow(temp.at<float>(m, n), 2);
+					}
+				}
+			}
+			BRMS_Meansum += std::sqrt((float)(cv::mean(temp, mask == 255)[0]))/average;
+			cout << "rms:" << std::sqrt((float)(cv::mean(temp, mask == 255)[0])) << endl;
+			cout << "average:" << average << endl;
+		}
+		float BRMS_Mean = BRMS_Meansum / (int)(images.size());
+		return BRMS_Mean;
+	}
+
+	/**
+	 * @brief calcBRMS_Median                   计算calcBRMS_Median-图像亮度均方值除以中值
+	 * @param images                            图组
+	 * @param mask                              掩膜
+	 * @return                                  SRMS
+	 */
+	static float calcBRMS_Median(vector<cv::Mat> images, cv::Mat mask)
+	{
+		vector<cv::Point> points;
+		cv::findNonZero(mask, points);
+		if (points.size() == 0)
+		{
+			return -1;
+		}
+		int row = mask.rows;
+		int col = mask.cols;
+		float BRMS_Mediansum = 0.0f;
+		cv::Mat temp;
+		int number_size = (int)(images.size());
+		for (int i = 0; i < number_size; ++i)
+		{
+			temp = images[i].clone();
+			cv::Mat tmp;
+			for (int m = 0; m < row; ++m)
+			{
+				for (int n = 0; n < col; ++n)
+				{
+					if (mask.at<uchar>(m, n) == 255)
+					{
+						tmp.push_back(temp.at<float>(m, n));
+					}
+				}
+			}
+			cv::Mat sorted; 
+			cv::sort(tmp, sorted, cv::SORT_EVERY_COLUMN+cv::SORT_ASCENDING);
+			float median = sorted.at<float>(sorted.rows / 2);
+			for (int m = 0; m < row; ++m)
+			{
+				for (int n = 0; n < col; ++n)
+				{
+					if (mask.at<uchar>(m, n) == 255)
+					{
+						temp.at<float>(m, n) = pow(temp.at<float>(m, n), 2);
+					}
+				}
+			}
+			BRMS_Mediansum += std::sqrt((float)(cv::mean(temp, mask == 255)[0]))/median;
+		}
+		float BRMS_Median = BRMS_Mediansum / (int)(images.size());
+		return BRMS_Median;
+	}
+
+	/**
+	 * @brief Hanning                          汉宁窗（非0开始,默认参数0.5）
+	 * @param number                           窗尺寸
+	 * @param a                                窗参数
+	 * @return                                 窗数组
+	 */
+	static vector<float> Hanning(int number,float a=0.5)
+	{
+		vector<float> result;
+		for (int i = 0; i < number; i++)
+		{
+			float w = (1 - a) - a*cos(2 * PI*(i + 1) / (number + 1));
+			result.emplace_back(w);
+		}
+		return result;
+	}
+
+	/**
+	 * @brief QuadFlip                         四象翻转法（傅里叶变换用）
+	 * @param picture                          输入图像
+	 * @return                                 输出
+	 */
+	static cv::Mat QuadFlip(const cv::Mat &picture)
+	{
+		cv::Mat result(picture.rows * 2, picture.cols * 2, picture.type());
+		cv::Mat Upperleft, Lowerleft, Upperright, Lowerright;
+		Upperleft = picture.clone();
+		cv::flip(picture, Upperright, 1);//即沿Y轴翻转
+		cv::flip(picture, Lowerleft, 0);//即沿X轴翻转
+		cv::flip(picture, Lowerright, -1);//即沿Y轴翻转
+		Upperleft.copyTo(result(cv::Range(0, picture.rows), cv::Range(0, picture.cols)));
+		Lowerleft.copyTo(result(cv::Range(picture.rows, 2*picture.rows), cv::Range(0, picture.cols)));
+		Upperright.copyTo(result(cv::Range(0, picture.rows), cv::Range(picture.cols, 2*picture.cols)));
+		Lowerright.copyTo(result(cv::Range(picture.rows, 2*picture.rows), cv::Range(picture.cols, 2*picture.cols)));
+		return result;
+	}
+
+	/**
+	 * @brief MatExpand                        扩展图像（原图居于中心，扩展区为nan值）
+	 * @param picture                          输入图像
+	 * @param level                            扩展倍数
+ 	 * @return                                 输出
+	 */
+	static cv::Mat MatExpand(const cv::Mat &picture,float level)
+	{
+		cv::Mat result(int(picture.rows * level), int(picture.cols * level), picture.type(), nan(""));
+		cv::Mat Upperleft;
+		Upperleft = picture.clone();
+		Upperleft.copyTo(result(cv::Range(int((level-1) * picture.rows / 2), int((level + 1) * picture.rows / 2)), cv::Range(int((level - 1) * picture.cols / 2), int((level + 1) * picture.cols / 2))));
+		return result;
+	}
+
+	/**
+	 * @brief GrayToColor                      灰度图上色
+	 * @param phase                            输入的灰色图像，通道为1
+	 * @return                                 上色后的图像
+	 */
+	static cv::Mat GrayToColor(cv::Mat &phase)
+	{
+		CV_Assert(phase.channels() == 1);
+
+		if (phase.empty())
+		{
+			cv::Mat result = cv::Mat::zeros(10,10, CV_8UC3);
+			return result;
+		}
+		cv::Mat temp, result, mask;
+		// 将灰度图重新归一化至0-255
+		cv::normalize(phase, temp, 255, 0, cv::NORM_MINMAX);
+		temp.convertTo(temp, CV_8UC1);
+		// 创建掩膜，目的是为了隔离nan值的干扰
+		mask = cv::Mat::zeros(phase.size(), CV_8UC1);
+		mask.setTo(255, phase == phase);
+
+		// 初始化三通道颜色图
+		cv::Mat color1, color2, color3;
+		color1 = cv::Mat::zeros(temp.size(), temp.type());
+		color2 = cv::Mat::zeros(temp.size(), temp.type());
+		color3 = cv::Mat::zeros(temp.size(), temp.type());
+		int row = phase.rows;
+		int col = phase.cols;
+
+		// 基于灰度图的灰度层级，给其上色，最底的灰度值0为蓝色（255，0,0），最高的灰度值255为红色（0,0,255），中间的灰度值127为绿色（0,255,0）
+		for (int i = 0; i < row; ++i)
+		{
+			uchar *c1 = color1.ptr<uchar>(i);
+			uchar *c2 = color2.ptr<uchar>(i);
+			uchar *c3 = color3.ptr<uchar>(i);
+			uchar *r = temp.ptr<uchar>(i);
+			uchar *m = mask.ptr<uchar>(i);
+			for (int j = 0; j < col; ++j)
+			{
+				if (m[j] == 255)
+				{
+					if (r[j] > (3 * 255 / 4) && r[j] <= 255)
+					{
+						c1[j] = 255;
+						c2[j] = 4 * (255 - r[j]);
+						c3[j] = 0;
+					}
+					else if (r[j] <= (3 * 255 / 4) && r[j] > (255 / 2))
+					{
+						c1[j] = 255 - 4 * (3 * 255 / 4 - r[j]);
+						c2[j] = 255;
+						c3[j] = 0;
+					}
+					else if (r[j] <= (255 / 2) && r[j] > (255 / 4))
+					{
+						c1[j] = 0;
+						c2[j] = 255;
+						c3[j] = 4 * (255 / 2 - r[j]);
+					}
+					else if (r[j] <= (255 / 4) && r[j] >= 0)
+					{
+						c1[j] = 0;
+						c2[j] = 255 - 4 * (255 / 4 - r[j]);
+						c3[j] = 255;
+					}
+					else {
+						c1[j] = 0;
+						c2[j] = 0;
+						c3[j] = 0;
+					}
+				}
+			}
+		}
+
+		// 三通道合并，得到颜色图
+		vector<cv::Mat> images;
+		images.push_back(color3);
+		images.push_back(color2);
+		images.push_back(color1);
+		cv::merge(images, result);
+		
+		return result;
+	}
+
+	/**
+	 * @brief GrayToColorFromOther             灰度图上色，基于另一灰度图的色板
+	 * @param phase1                           输入的灰色图像，通道为1，提供色板
+	 * @param phase2                           输入的灰色图像，通道为1，基于phase1的色板绘色
+	 * @return                                 上色后的图像
+	 */
+	static cv::Mat GrayToColorFromOther(cv::Mat &phase1,cv::Mat &phase2)
+	{
+		CV_Assert(phase1.channels() == 1);
+		CV_Assert(phase2.channels() == 1);
+		if (phase1.empty()|| phase2.empty())
+		{
+			cv::Mat result = cv::Mat::zeros(10, 10, CV_8UC3);
+			return result;
+		}
+		cv::Mat temp, result, mask;
+		double max1, min1;
+		int row = phase2.rows;
+		int col = phase2.cols;
+		cv::minMaxIdx(phase1, &min1, &max1, nullptr, nullptr, phase1 == phase1);
+		// 将灰度图重新归一化至0-255
+		temp = phase2.clone();
+		for (int i = 0; i < row; ++i)
+		{
+			float *t2 = temp.ptr<float>(i);
+			for (int j = 0; j < col; ++j)
+			{
+				t2[j] = 255.0f*(phase2.at<float>(i, j) - (float)min1) / ((float)max1 - (float)min1);
+			}
+		}
+		temp.convertTo(temp, CV_8UC1);
+		// 创建掩膜，目的是为了隔离nan值的干扰
+		mask = cv::Mat::zeros(phase2.size(), CV_8UC1);
+		mask.setTo(255, phase2 == phase2);
+
+		// 初始化三通道颜色图
+		cv::Mat color1, color2, color3;
+		color1 = cv::Mat::zeros(temp.size(), temp.type());
+		color2 = cv::Mat::zeros(temp.size(), temp.type());
+		color3 = cv::Mat::zeros(temp.size(), temp.type());
+
+		// 基于灰度图的灰度层级，给其上色，最底的灰度值0为蓝色（255，0,0），最高的灰度值255为红色（0,0,255），中间的灰度值127为绿色（0,255,0）
+		for (int i = 0; i < row; ++i)
+		{
+			uchar *c1 = color1.ptr<uchar>(i);
+			uchar *c2 = color2.ptr<uchar>(i);
+			uchar *c3 = color3.ptr<uchar>(i);
+			uchar *r = temp.ptr<uchar>(i);
+			uchar *m = mask.ptr<uchar>(i);
+			for (int j = 0; j < col; ++j)
+			{
+				if (m[j] == 255)
+				{
+					if (r[j] > (3 * 255 / 4) && r[j] <= 255)
+					{
+						c1[j] = 255;
+						c2[j] = 4 * (255 - r[j]);
+						c3[j] = 0;
+					}
+					else if (r[j] <= (3 * 255 / 4) && r[j] > (255 / 2))
+					{
+						c1[j] = 255 - 4 * (3 * 255 / 4 - r[j]);
+						c2[j] = 255;
+						c3[j] = 0;
+					}
+					else if (r[j] <= (255 / 2) && r[j] > (255 / 4))
+					{
+						c1[j] = 0;
+						c2[j] = 255;
+						c3[j] = 4 * (255 / 2 - r[j]);
+					}
+					else if (r[j] <= (255 / 4) && r[j] >= 0)
+					{
+						c1[j] = 0;
+						c2[j] = 255 - 4 * (255 / 4 - r[j]);
+						c3[j] = 255;
+					}
+					else {
+						c1[j] = 0;
+						c2[j] = 0;
+						c3[j] = 0;
+					}
+				}
+			}
+		}
+
+		// 三通道合并，得到颜色图
+		vector<cv::Mat> images;
+		images.push_back(color3);
+		images.push_back(color2);
+		images.push_back(color1);
+		cv::merge(images, result);
+
+		return result;
+	}
+
+	/*--------------------- other functions -------------------------*/
 	// 计算pv
 	static float getPv(cv::Mat src) {
 		double minv = 0;
@@ -357,165 +843,14 @@ public:
 	}
 
 	/**
-	* @brief CalcTheta                         计算x or y方向的角度
-	* @param z1                                待测界面，mask1的4阶zernike系数的倾斜项（x:z2, y:z3）
-	* @param z2                                参考界面，mask2的4阶zernike系数的倾斜项（x:z2, y:z3）
-	* @param aperture1                         mask1的口径(mm)
-	* @param aperture2                         mask2的口径(mm)
-	* @param refractiveIndex                   折射率
-	* @param testWaveLength                    测试波长（nm）
-	* @return                                  x or y方向的角度(秒)
-	*/
-	static float CalcTheta(float z1, float z2, float aperture1,
-		float aperture2, float refractiveIndex, float testWaveLength) {
-		if (refractiveIndex == 1.0f || aperture1 == 0.0f || aperture2 == 0.0f) {
-			return 0.0f;
-		}
-		float retTheta = 0.0f;
-		float tmp = z1 / aperture1 / (refractiveIndex - 1.0f) - 2.0f * z2 / aperture2;
-		// retTheta = 410.0544f * tmp / PI / 2.0f / (refractiveIndex - 1.0f); // testWaveLength == 632.8
-		// retTheta = 3.6f * testWaveLength  * 0.18f * tmp / PI / 2.0f / (refractiveIndex - 1.0f);
-		// retTheta = RAD_TO_ANGLE * testWaveLength  * 0.0036f * tmp / 2.0f / (refractiveIndex - 1.0f);
-		retTheta = RAD_TO_ANGLE * testWaveLength  * 0.0036f * tmp / (refractiveIndex - 1.0f);
-		return retTheta;
-	} 
-
-	/**
-	* @brief CalcParallelDegree                计算平行度
-	* @param zernikeCoef4_1                    待测界面，mask1的4阶zernike系数（x:z2, y:z3）
-	* @param zernikeCoef4_2                    参考界面，mask2的4阶zernike系数（x:z2, y:z3）
-	* @param aperture1                         mask1的口径(mm)
-	* @param aperture2                         mask2的口径(mm)
-	* @param refractiveIndex                   折射率
-	* @param testWaveLength                    测试波长（nm）
-	* @return                                  平行度（单位：秒）
-	*/
-	static float CalcParallelDegree(cv::Mat zernikeCoef4_1, cv::Mat zernikeCoef4_2,
-		float aperture1, float aperture2, float refractiveIndex, float testWaveLength) {
-		float retTheta = 0.0f;
-
-		// 计算x or y方向的角度
-		float theta_x = CalcTheta(zernikeCoef4_1.at<float>(1),
-			zernikeCoef4_2.at<float>(1), aperture1, aperture2, refractiveIndex, testWaveLength);
-		float theta_y = CalcTheta(zernikeCoef4_1.at<float>(2),
-			zernikeCoef4_2.at<float>(2), aperture1, aperture2, refractiveIndex, testWaveLength);
-
-		// 计算平行度theta
-		retTheta = sqrtf(theta_x * theta_x + theta_y * theta_y);
-		
-		return retTheta;
-	}
-
-	/**
-	* @brief detecThreeFlat                    三平面检测（a, b, c）
-	* @param xSlice                            拟合曲面横坐标方向的切片(a+b, a+c, b+c, br/cr)@待测面+参考面，br即令b旋转180度，cr=c（参考面不变）
-	* @param ySlice                            拟合曲面纵坐标方向的切片(a+b, a+c, b+c, br/cr)@待测面+参考面，br即令b旋转180度，cr=c（参考面不变）
-	* @param pv                                三个平面的x,y方向上PV（顺序为：a,b,c，第一行x,第二行y）
-	* @param rms                               三个平面的x,y方向上rms（顺序为：a,b,c，第一行x,第二行y）
-	* @return                                  三个平面的计算结果(先x(abc)，后y(abc))
-	*/
-	static std::vector<cv::Mat> detecThreeFlat(std::vector<cv::Mat>xSlice,
-		std::vector<cv::Mat>ySlice, float pv[2][3], float rms[2][3]) {
-		CV_Assert(xSlice.size() == 4);
-		CV_Assert(ySlice.size() == 4);
-
-		std::vector<cv::Mat> result;
-
-		cv::Mat tmp,rxa,rxb,rxc,rya,ryb,ryc;
-		// 计算x方向的结果
-		tmp = (xSlice[0] + xSlice[1] - xSlice[3]) / 2.0f;
-		rxa = tmp.clone();
-		result.emplace_back(rxa);
-		pv[0][0] = getPv(rxa);
-		rms[0][0] = getRms(rxa);
-
-		tmp = (xSlice[0] + xSlice[3] - xSlice[1]) / 2.0f;
-		rxb = tmp.clone();
-		result.emplace_back(rxb);
-		pv[0][1] = getPv(rxb);
-		rms[0][1] = getRms(rxb);
-
-		tmp = (xSlice[3] + xSlice[1] - xSlice[0]) / 2.0f;
-		rxc = tmp.clone();
-		result.emplace_back(rxc);
-		pv[0][2] = getPv(rxc);
-		rms[0][2] = getRms(rxc);
-
-		// 计算y方向的结果
-		tmp = (ySlice[0] + ySlice[1] - ySlice[2]) / 2.0f;
-		rya = tmp.clone();
-		result.emplace_back(rya);
-		pv[1][0] = getPv(rya);
-		rms[1][0] = getRms(rya);
-
-		tmp = (ySlice[0] + ySlice[2] - ySlice[1]) / 2.0f;
-		ryb = tmp.clone();
-		result.emplace_back(ryb);
-		pv[1][1] = getPv(ryb);
-		rms[1][1] = getRms(ryb);
-
-		tmp = (ySlice[2] + ySlice[1] - ySlice[0]) / 2.0f;
-		ryc = tmp.clone();
-		result.emplace_back(ryc);
-		pv[1][2] = getPv(ryc);
-		rms[1][2] = getRms(ryc);
-
-		/*std::cout << "pv = ";
-		for (int i = 0; i < 2; ++i) {
-			std::cout << std::endl;
-			for (int j = 0; j < 3; ++j) {
-				std::cout << pv[i][j] << ", ";
-			}
-		}
-
-		std::cout << std::endl << "rms = ";
-		for (int i = 0; i < 2; ++i) {
-			std::cout << std::endl;
-			for (int j = 0; j < 3; ++j) {
-				std::cout << rms[i][j] << ", ";
-			}
-		}*/
-
-		return result;
-	}
-	
-	/**
-	* @brief Rotate                            图像旋转
-	* @param srcImage                          待旋转图像
-	* @param dstImage                          旋转后的图像
-	* @param angle                             旋转角度（正数为逆时针，负数为顺时针）
-	* @return 
-	*/
-	static void Rotate(const cv::Mat &srcImage, cv::Mat &dstImage, double angle)
-	{
-		cv::Point2f center(srcImage.cols / 2.0f, srcImage.rows / 2.0f);//中心
-		cv::Mat M = cv::getRotationMatrix2D(center, angle, 1);//计算旋转的仿射变换矩阵 
-		cv::warpAffine(srcImage, dstImage, M, cv::Size(srcImage.cols, srcImage.rows));//仿射变换  
-	}
-
-	/**
-    * @brief Rotate2                           图像旋转
-    * @param srcImage                          待旋转图像
-    * @param dstImage                          旋转后的图像
-    * @param angle                             旋转角度（正数为逆时针，负数为顺时针）
-	* @param center                            旋转中心
-    * @return
-    */
-	static void Rotate2(const cv::Mat &srcImage, cv::Mat &dstImage, double angle,cv::Point2f center)
-	{
-		cv::Mat M = cv::getRotationMatrix2D(center, angle, 1);//计算旋转的仿射变换矩阵 
-		cv::warpAffine(srcImage, dstImage, M, cv::Size(srcImage.cols, srcImage.rows));//仿射变换  
-	}
-	
-	/**
-	* @brief analysisDoubleSpherSur            计算被测面和标准面的绝对误差（双球面绝对检测）
-	* @param fittedSurface                     拟合曲面(M4:猫眼点, M0:共焦点0度, M1:90度, M2:180度, M3:270度)
-	* @param pv                                pv(0:被测面, 1:标准面)
-	* @param rms                               rms(0:被测面, 1:标准面)
-	* @param testSurError                      被测面误差
-	* @param standSurError                     标准面误差
-	* @return                                  
-	*/
+	 * @brief analysisDoubleSpherSur            计算被测面和标准面的绝对误差（双球面绝对检测）
+	 * @param fittedSurface                     拟合曲面(M4:猫眼点, M0:共焦点0度, M1:90度, M2:180度, M3:270度)
+	 * @param pv                                pv(0:被测面, 1:标准面)
+	 * @param rms                               rms(0:被测面, 1:标准面)
+	 * @param testSurError                      被测面误差
+	 * @param standSurError                     标准面误差
+	 * @return                                  
+	 */
 	static void analysisDoubleSpherSur(std::vector<cv::Mat> fittedSurface,
 		float pv[2], float rms[2], cv::Mat &testSurError, cv::Mat &standSurError) {
 		CV_Assert(fittedSurface.size() == 5);
@@ -557,18 +892,18 @@ public:
 	}
 
 	/**
-	* @brief calcOpticalHomogeneity            计算光学均匀性
-	* @param refractiveIndex                   折射率
-	* @param thickness				           器件厚度
-	* @param unitType                          单位
-	* @param testWaveLength                    波长
-	* @param fittedSurface                     拟合曲面(C,T,S1,S2)空腔，透过，前表面，后表面
-	* @param pvh                               pvh(pv除以厚度)
-	* @param rmsh                              rmsh(rms除以厚度)
-	* @param pv                                pv
-	* @param rms                               rms
-	* @return
-	*/
+	 * @brief calcOpticalHomogeneity            计算光学均匀性
+	 * @param refractiveIndex                   折射率
+	 * @param thickness				           器件厚度
+	 * @param unitType                          单位
+	 * @param testWaveLength                    波长
+	 * @param fittedSurface                     拟合曲面(C,T,S1,S2)空腔，透过，前表面，后表面
+	 * @param pvh                               pvh(pv除以厚度)
+	 * @param rmsh                              rmsh(rms除以厚度)
+	 * @param pv                                pv
+	 * @param rms                               rms
+	 * @return
+	 */
 	static int calcOpticalHomogeneity(float refractiveIndex, float thickness, int unitType,
 		float testWaveLength, std::vector<cv::Mat> &fittedSurface, float *pvh, float *rmsh,float *pv,float *rms,cv::Mat &result)
 	{
@@ -622,6 +957,88 @@ public:
 		return 0;                               //光学均匀性模块正常
 	}
 
+	/**
+	 * @brief calculator_add                    相位计算器—加法
+	 * @param inImage1                          输入位相图1
+	 * @param inImage2                          输入位相图2
+	 * @return                                  结果图
+	 */
+	static cv::Mat calculator_add(const cv::Mat &inImage1,
+		const cv::Mat &inImage2) {
+		CV_Assert(inImage1.type() == inImage2.type());
+		CV_Assert(inImage1.size() == inImage2.size());
+		return inImage1 + inImage2;
+	}
+
+	/**
+	 * @brief calculator_sub                    相位计算器—减法
+	 * @param inImage1                          输入位相图1
+	 * @param inImage2                          输入位相图2
+	 * @return                                  结果图
+	 */
+	static cv::Mat calculator_sub(const cv::Mat &inImage1,
+		const cv::Mat &inImage2) {
+		CV_Assert(inImage1.type() == inImage2.type());
+		CV_Assert(inImage1.size() == inImage2.size());
+		return inImage1 - inImage2;
+	}
+
+	/**
+	 * @brief calculator_mul                    相位计算器—乘法
+	 * @param inImage                           输入位相图
+	 * @param scale                             乘法系数
+	 * @return                                  结果图
+	 */
+	static cv::Mat calculator_mul(const cv::Mat &inImage, const float scale) {
+		return scale * inImage;
+	}
+
+	/**
+	 * @brief calculator_rev                    相位计算器—反转
+	 * @param inImage                           输入位相图
+	 * @return                                  结果图
+	 */
+	static cv::Mat calculator_rev(const cv::Mat &inImage) {
+		return -1 * inImage;
+	}
+
+	/**
+	 * @brief calculator_rotate                 相位计算器—旋转
+	 * @param inImage                           输入位相图
+	 * @param angle                             角度
+	 * @return                                  结果图
+	 */
+	static cv::Mat calculator_rotate(const cv::Mat &inImage, cv::Mat &mask, const float angle) {
+		CV_Assert(inImage.type() == CV_32FC1);
+		int left = 10000;
+		int up = 10000;
+		int right = 0;
+		int down = 0;
+		int row = inImage.rows;
+		int col = inImage.cols;
+		for (int i = 0; i < row; ++i)
+		{
+			uchar *temp = mask.ptr<uchar>(i);
+			for (int j = 0; j < col; ++j)
+			{
+				if (temp[j] != 0)
+				{
+					if (i < up) up = i;
+					if (i > down) down = i;
+					if (j < left) left = j;
+					if (j > right) right = j;
+				}
+			}
+		}
+		cv::Point2i center;
+		center.x = (right + left) / 2;
+		center.y = (up + down) / 2;
+		cv::Mat out = cv::Mat();
+		Rotate2(inImage, out, angle, center);
+		return out;
+	}
+	
+	/*------------------------ math ----------------------------*/
 	//按第一行展开计算3*3|A|
 	static float getA(float arcs[3][3], int n)
 	{
@@ -705,89 +1122,74 @@ public:
 		}
 	}
 
+	/*--------------------- file functions -------------------------*/
 	/**
-	* @brief calculator_add                    相位计算器—加法
-	* @param inImage1                          输入位相图1
-	* @param inImage2                          输入位相图2
-	* @return                                  结果图
-	*/
-	static cv::Mat calculator_add(const cv::Mat &inImage1,
-		const cv::Mat &inImage2) {
-		CV_Assert(inImage1.type() == inImage2.type());
-		CV_Assert(inImage1.size() == inImage2.size());
-		return inImage1 + inImage2;
+	 * @brief GetProgramDir                     获取当前工作目录路径
+	 * @return                                  路径
+	 */
+	static string GetProgramDir()
+	{
+		char exeFullPath[MAX_PATH]; // Full path 
+		string strPath = "";
+
+		GetModuleFileNameA(NULL, exeFullPath, MAX_PATH);
+		strPath = (string)exeFullPath;    // Get full path of the file 
+
+		int pos = static_cast<int>(strPath.find_last_of('\\', strPath.length()));
+		return strPath.substr(0, pos);  // Return the directory without the file name 
 	}
 
 	/**
-    * @brief calculator_sub                    相位计算器—减法
-    * @param inImage1                          输入位相图1
-	* @param inImage2                          输入位相图2
-	* @return                                  结果图
-	*/
-	static cv::Mat calculator_sub(const cv::Mat &inImage1,
-		const cv::Mat &inImage2) {
-		CV_Assert(inImage1.type() == inImage2.type());
-		CV_Assert(inImage1.size() == inImage2.size());
-		return inImage1 - inImage2;
+	 * @brief DatetimeToString                  获取当前时间
+	 * @return                                  时间
+	 */
+	static std::string DatetimeToString(tm tm_in)
+	{
+		tm *tm_ = &tm_in;						  // 将time_t格式转换为tm结构体
+		int year, month, day, hour, minute, second;// 定义时间的各个int临时变量。
+		year = tm_->tm_year + 1900;                // 临时变量，年，由于tm结构体存储的是从1900年开始的时间，所以临时变量int为tm_year加上1900。
+		month = tm_->tm_mon + 1;                   // 临时变量，月，由于tm结构体的月份存储范围为0-11，所以临时变量int为tm_mon加上1。
+		day = tm_->tm_mday;
+		hour = tm_->tm_hour;
+		minute = tm_->tm_min;
+		second = tm_->tm_sec;
+
+		char s[20];                                // 定义总日期时间char*变量。
+		sprintf(s, "%04d-%02d-%02d %02d:%02d:%02d—— ", year, month, day, hour, minute, second);// 将年月日时分秒合并。
+		std::string str(s);                       // 定义string变量，并将总日期时间char*变量作为构造函数的参数传入。
+		return std::move(str);                    // 返回转换日期时间后的string变量。
 	}
 
 	/**
-	* @brief calculator_mul                    相位计算器—乘法
-	* @param inImage                           输入位相图
-	* @param scale                             乘法系数
-	* @return                                  结果图
-	*/
-    static cv::Mat calculator_mul(const cv::Mat &inImage, const float scale) {
-		return scale * inImage;
-	}
-
-	/**
-	* @brief calculator_rev                    相位计算器—反转
-	* @param inImage                           输入位相图
-	* @return                                  结果图
-	*/
-	static cv::Mat calculator_rev(const cv::Mat &inImage) {
-		return -1*inImage;
-	}
-
-	/**
-	* @brief calculator_rotate                 相位计算器—旋转
-	* @param inImage                           输入位相图
-	* @param angle                             角度
-	* @return                                  结果图
-	*/
-    static cv::Mat calculator_rotate(const cv::Mat &inImage, cv::Mat &mask,const float angle) {
-		CV_Assert(inImage.type() == CV_32FC1);
-		int left = 10000;
-		int up = 10000;
-		int right = 0;
-		int down = 0;
-		int row = inImage.rows;
-		int col = inImage.cols;
-		for (int i = 0; i < row; ++i)
+	 * @brief WriteLog                          写进日志
+     * @param msg                               内容
+	 * @return                                  状态码
+	 */
+	static int WriteLog(string msg)
+	{
+		struct tm *local;
+		time_t t;
+		t = time(NULL);
+		local = localtime(&t);
+		string dtime = DatetimeToString(*local);
+		ofstream outfile;
+		outfile.open(GetProgramDir() + "\\" + "algorithm-log.txt", ios::app); //文件的物理地址，文件的打开方式
+		if (outfile.is_open())
 		{
-            uchar *temp = mask.ptr<uchar>(i);
-			for (int j = 0; j < col; ++j)
-			{
-                if (temp[j]!=0)
-				{
-					if (i < up) up = i;
-					if (i > down) down = i;
-					if (j < left) left = j;
-					if (j > right) right = j;
-				}
-			}
+			outfile << dtime << msg << "\n";
+			outfile.close();
+			return 0;
 		}
-		cv::Point2i center;
-		center.x = (right + left) / 2;
-		center.y = (up + down) / 2;
-		cv::Mat out = cv::Mat();
-		Rotate2(inImage,out,angle,center);
-		return out;
+		else
+		{
+			return 1;
+		}
 	}
+
 };
 
 namespace calc {
+	/*--------------------- base functions -------------------------*/
 	template<typename T, int num>
 	/**
 	 * @brief foreach_x
@@ -847,6 +1249,7 @@ namespace calc {
 		return dst;
 	}
 
+	/*--------------------- Image Processing functions -------------------------*/
 	/**
 	 * @brief  bitwise_and()同 &,  opencv自带的按位与的函数，
 	 * @param  src1                输入图像1
@@ -903,6 +1306,115 @@ namespace calc {
 	}
 
 	/**
+	 * @brief  SetToNan,           将src中的非mask区域设置为NaN
+	 * @param  src                 输入图像
+	 * @return mask                mask
+	 */
+	inline void SetToNan(cv::Mat& src, const cv::Mat& mask) {
+		CV_Assert(src.type() == CV_32FC1);
+		cv::Mat _nan(src.size(), src.type(), nan(""));
+		_nan.setTo(0, ~mask);
+		src = src + _nan;
+	}
+
+	/**
+	 * @brief  find,               查找满足条件的索引，并将结果放在idx中
+	 * @param  condition           输入条件
+	 * @return idx                 输出结果,
+	 */
+	inline void find(const cv::Mat& condition,
+		std::vector<cv::Point>& idx) {
+		cv::findNonZero(condition, idx);  //Returns the list of locations of non-zero pixels
+	}
+
+	/**
+	 * @brief  find_nan,           查找所有为NaN的元素，并将其索引放在idx中，(NaN != NaN) = true
+	 * @param  src                 输入数据
+	 * @return idx                 输出结果,
+	 */
+	inline void find_nan(const cv::Mat& src,
+		std::vector<cv::Point>& idx) {
+		cv::findNonZero(~(src == src), idx);  //Returns the list of locations of non-zero pixels
+	}
+
+	/**
+	 * @brief  find_notnan,        查找所有不为NaN的元素，并将其索引放在idx中，(NaN == NaN) = false
+	 * @param  src                 输入数据
+	 * @return idx                 输出结果,
+	 */
+	inline void find_notnan(const cv::Mat& src,
+		std::vector<cv::Point>& idx) {
+		cv::findNonZero(src == src, idx);  //Returns the list of locations of non-zero pixels
+	}
+
+	template <typename T>
+	/**
+	 * @brief  get in a col         将src中，idx区域转化为一个列矩阵
+	 * @param  src                  输入数据
+	 * @param  idx                  待处理区域的索引
+	 * @return dst                  列矩阵
+	 */
+	inline cv::Mat get(const cv::Mat& src,
+		const std::vector<cv::Point>& idx) {
+		CV_Assert(cv::DataType<T>::type == src.type());
+		int num = (int)idx.size();
+		cv::Mat dst(num, 1, src.type());
+
+		/* pragma omp parallel for 是OpenMP中的一个指令，
+		表示接下来的for循环将被多线程执行，另外每次循环之间不能有关系 */
+#pragma omp parallel for
+		for (int i = 0; i < num; ++i) {
+				dst.at<T>(i, 0) = src.at<T>(idx[i]);
+		}
+		return dst;
+	}
+
+	/**
+	 * @brief  get_notnan in a col  将所有不为NaN的元素转化为一个列向量
+	 * @param  src CV_32FC1         输入数据
+	 * @return dst                  列向量
+	 */
+	inline cv::Mat get_notnan(const cv::Mat& src) {
+		CV_Assert(src.type() == CV_32FC1);
+		std::vector<cv::Point> idx;
+
+		//查找所有不为NaN的元素，并将其索引放在idx中
+		find_notnan(src, idx);
+		cv::Mat dst((int)(idx.size()), 1, src.type());
+		for (int i = 0; i != idx.size(); ++i) {
+			dst.at<float>(i, 0) = src.at<float>(idx[i]); //转化为列向量
+		}
+		return dst;
+	}
+
+	//删除面积过小的连通域
+	inline void bwareaopen(cv::Mat src, cv::Mat &dst, double min_area) {
+		dst = src.clone();
+		std::vector<std::vector<cv::Point> > 	contours;
+		std::vector<cv::Vec4i> 			hierarchy;
+		cv::findContours(src, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE, cv::Point());
+		if (!contours.empty() && !hierarchy.empty()) {
+			std::vector<std::vector<cv::Point> >::const_iterator itc = contours.begin();
+			while (itc != contours.end()) {
+				cv::Rect rect = cv::boundingRect(cv::Mat(*itc));
+				double area = contourArea(*itc);
+				if (area < min_area) {
+					for (int i = rect.y; i < rect.y + rect.height; i++) {
+						uchar *output_data = dst.ptr<uchar>(i);
+						for (int j = rect.x; j < rect.x + rect.width; j++) {
+							if (output_data[j] == 255) {
+								output_data[j] = 0;
+							}
+						}
+					}
+				}
+				itc++;
+			}
+		}
+	}
+	
+	/*--------------------- math -------------------------*/
+	/**
 	 * @brief  sqrt,               计算矩阵中每个元素的平方根，
 	 * @param  src                 输入图像
 	 * @return dst                 输出结果即 dst = sqrt(src)
@@ -934,6 +1446,113 @@ namespace calc {
 	inline cv::Mat exp(cv::InputArray src) {
 		cv::Mat dst;
 		cv::exp(src, dst);
+		return dst;
+	}
+
+	/**
+	 * @brief  exp,                求src中所有元素的指数，并将结果放在dst中
+	 * @param  src                 输入图像
+	 * @return dst                 输出结果,即 dst = e^src
+	 */
+	inline cv::Mat angle(cv::Mat src) {
+
+		CV_Assert(src.type() == CV_32FC2);
+		//创建双通道矩阵，分别存放实部和虚部
+		cv::Mat plane[] = { cv::Mat::zeros(src.size() , CV_32FC1) , cv::Mat::zeros(src.size() , CV_32FC1) };
+		// 分离通道（数组分离）
+		cv::split(src, plane);
+
+		cv::Mat dst(src.size(), CV_32FC1);
+		int cols = src.cols;
+		int rows = src.rows;
+		//返回bool值，判断存储是否连续。
+		if (src.isContinuous() && dst.isContinuous())
+		{
+			cols *= rows;
+			rows = 1;
+		}
+		//计算每个元素的log10
+		for (int i = 0; i < rows; i++)
+		{
+			const float* imag = plane[1].ptr<float>(i);
+			const float* real = plane[0].ptr<float>(i);
+			float* dsti = dst.ptr<float>(i);
+			for (int j = 0; j < cols; j++) {
+				dsti[j] = std::atan2(imag[j],real[j]);
+			}
+		}
+		return dst;
+	}
+
+	/**
+	 * @brief  logf,               求src中所有元素的loge，并将结果放在dst中
+	 * @param  src                 输入图像
+	 * @return dst                 输出结果,即 dst = log(src),自然对数
+	 */
+	inline cv::Mat logf(const cv::Mat& src) {
+		CV_Assert(src.type() == CV_32FC1);
+		cv::Mat dst;
+		cv::log(src, dst);
+		return dst;
+	}
+
+	/**
+	 * @brief  log10f,             求src中所有元素的log10，并将结果放在dst中
+	 * @param  src                 输入图像
+	 * @return dst                 输出结果,即 dst = log10(src)
+	 */
+	inline cv::Mat log10f(const cv::Mat& src) {
+		CV_Assert(src.type() == CV_32FC1);
+		cv::Mat dst(src.size(), src.type());
+
+		int cols = src.cols;
+		int rows = src.rows;
+
+		//返回bool值，判断存储是否连续。
+		if (src.isContinuous() && dst.isContinuous())
+		{
+			cols *= rows;
+			rows = 1;
+		}
+		//计算每个元素的log10
+		for (int i = 0; i < rows; i++)
+		{
+			const float* srci = src.ptr<float>(i);
+			float* dsti = dst.ptr<float>(i);
+			for (int j = 0; j < cols; j++) {
+				dsti[j] = std::log10(srci[j]);
+			}
+		}
+		return dst;
+	}
+
+	/**
+	 * @brief  log2f,              求src中所有元素的log2，并将结果放在dst中
+	 * @param  src                 输入图像
+	 * @return dst                 输出结果,即 dst = log2(src)
+	 */
+	inline cv::Mat log2f(const cv::Mat& src) {
+		CV_Assert(src.type() == CV_32FC1);
+		cv::Mat dst(src.size(), src.type());
+
+		int cols = src.cols;
+		int rows = src.rows;
+
+		//返回bool值，判断存储是否连续。
+		if (src.isContinuous() && dst.isContinuous())
+		{
+			cols *= rows;
+			rows = 1;
+		}
+		//计算每个元素的log2
+		for (int i = 0; i < rows; i++)
+		{
+			const float* srci = src.ptr<float>(i);
+			float* dsti = dst.ptr<float>(i);
+			for (int j = 0; j < cols; j++) {
+				dsti[j] = std::log2(srci[j]);
+			}
+		}
 		return dst;
 	}
 
@@ -1027,88 +1646,24 @@ namespace calc {
 		return dst;
 	}
 
-	/**
-	 * @brief  SetToNan,           将src中的非mask区域设置为NaN
-	 * @param  src                 输入图像
-	 * @return mask                mask
-	 */
-	inline void SetToNan(cv::Mat& src, const cv::Mat& mask) {
-		CV_Assert(src.type() == CV_32FC1);
-		cv::Mat _nan(src.size(), src.type(), nan(""));
-		_nan.setTo(0, ~mask);
-		src = src + _nan;
-	}
-
-	/**
-	 * @brief  find,               查找满足条件的索引，并将结果放在idx中
-	 * @param  condition           输入条件
-	 * @return idx                 输出结果,
-	 */
-	inline void find(const cv::Mat& condition,
-		std::vector<cv::Point>& idx) {
-		cv::findNonZero(condition, idx);  //Returns the list of locations of non-zero pixels
-	}
-
-	/**
-	 * @brief  find_nan,           查找所有为NaN的元素，并将其索引放在idx中，(NaN != NaN) = true
-	 * @param  src                 输入数据
-	 * @return idx                 输出结果,
-	 */
-	inline void find_nan(const cv::Mat& src,
-		std::vector<cv::Point>& idx) {
-		cv::findNonZero(~(src == src), idx);  //Returns the list of locations of non-zero pixels
-	}
-
-	/**
-	 * @brief  find_notnan,        查找所有不为NaN的元素，并将其索引放在idx中，(NaN == NaN) = false
-	 * @param  src                 输入数据
-	 * @return idx                 输出结果,
-	 */
-	inline void find_notnan(const cv::Mat& src,
-		std::vector<cv::Point>& idx) {
-		cv::findNonZero(src == src, idx);  //Returns the list of locations of non-zero pixels
-	}
-
 	template <typename T>
 	/**
-	 * @brief  get in a col         将src中，idx区域转化为一个列矩阵
-	 * @param  src                  输入数据
-	 * @param  idx                  待处理区域的索引
-	 * @return dst                  列矩阵
+	 * @brief  Unified_angle_cycle      统一角度周期，将角度集中在0-360°
+	 * @param  angle                    输入角度
 	 */
-	inline cv::Mat get(const cv::Mat& src,
-		const std::vector<cv::Point>& idx) {
-		CV_Assert(cv::DataType<T>::type == src.type());
-		int num = (int)idx.size();
-		cv::Mat dst(num, 1, src.type());
-
-		/* pragma omp parallel for 是OpenMP中的一个指令，
-		表示接下来的for循环将被多线程执行，另外每次循环之间不能有关系 */
-#pragma omp parallel for
-		for (int i = 0; i < num; ++i) {
-				dst.at<T>(i, 0) = src.at<T>(idx[i]);
+	inline void Unified_angle_cycle(T &angle)
+	{
+		while (angle < 0)
+		{
+			angle = angle + 360;
 		}
-		return dst;
+		if (angle > 360)
+		{
+			angle -= (int(angle) / 360)*360.0f;
+		}
 	}
 
-	/**
-	 * @brief  get_notnan in a col  将所有不为NaN的元素转化为一个列向量
-	 * @param  src CV_32FC1         输入数据
-	 * @return dst                  列向量
-	 */
-	inline cv::Mat get_notnan(const cv::Mat& src) {
-		CV_Assert(src.type() == CV_32FC1);
-		std::vector<cv::Point> idx;
-
-		//查找所有不为NaN的元素，并将其索引放在idx中
-		find_notnan(src, idx);
-		cv::Mat dst((int)(idx.size()), 1, src.type());
-		for (int i = 0; i != idx.size(); ++i) {
-			dst.at<float>(i, 0) = src.at<float>(idx[i]); //转化为列向量
-		}
-		return dst;
-	}
-
+	/*--------------------- draw functions -------------------------*/
 	// 画直方图
 	inline void drawHistImg(cv::Mat &hist)
 	{
@@ -1383,6 +1938,7 @@ namespace calc {
 		mask = maskRect & maskCircle;
 	}
 
+	/*--------------------- file functions -------------------------*/
 	/**
 	 * @brief  ReadAsc              读取asc文件
 	 * @param  file                 输入asc数据
@@ -1532,31 +2088,61 @@ namespace calc {
 		f.close();
 	}
 
-	//删除面积过小的连通域
-	inline void bwareaopen(cv::Mat src, cv::Mat &dst, double min_area) {
-		dst = src.clone();
-		std::vector<std::vector<cv::Point> > 	contours;
-		std::vector<cv::Vec4i> 			hierarchy;
-		cv::findContours(src, contours, hierarchy, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE, cv::Point());
-		if (!contours.empty() && !hierarchy.empty()) {
-			std::vector<std::vector<cv::Point> >::const_iterator itc = contours.begin();
-			while (itc != contours.end()) {
-				cv::Rect rect = cv::boundingRect(cv::Mat(*itc));
-				double area = contourArea(*itc);
-				if (area < min_area) {
-					for (int i = rect.y; i < rect.y + rect.height; i++) {
-						uchar *output_data = dst.ptr<uchar>(i);
-						for (int j = rect.x; j < rect.x + rect.width; j++) {
-							if (output_data[j] == 255) {
-								output_data[j] = 0;
-							}
-						}
-					}
+	inline void WritePicToExcel(string name, cv::Mat pic)
+	{
+		CV_Assert(pic.type() == CV_32FC1);
+		ofstream outfile(name);
+		int row = pic.rows;
+		int col = pic.cols;
+		for (int i = 0; i < row; i++)
+		{
+			float *p = pic.ptr<float>(i);
+			for (int j = 0; j < col; j++)
+			{
+				if (p[j] == p[j])
+				{
+					outfile << p[j] << (j == (col - 1) ? '\n' : '\t');
 				}
-				itc++;
+				else {
+					outfile << "nan" << (j == (col - 1) ? '\n' : '\t');
+				}
+
 			}
 		}
+		outfile.close();
 	}
+
+	inline cv::Mat ReadPicFromExcel(string name)
+	{
+		cv::Mat result, pic;
+		ifstream infile(name);
+		string str;
+		int col = 0;
+		while (getline(infile, str))
+		{
+			string temp;
+			stringstream input(str);
+			col = 0;
+			while (input >> temp)
+			{
+				if (temp == "nan")
+				{
+					pic.push_back(nan(""));
+				}
+				else {
+					pic.push_back(float(atof(temp.c_str())));
+				}
+				col++;
+			}
+		}
+		int number = result.rows;
+		int row = number / col;
+		result = pic.reshape(row, col);
+		infile.close();
+		return result;
+	}
+
+
 } // end calc
 
 #endif

@@ -19,6 +19,7 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <QFontDatabase>
+#include <QBuffer>
 
 #include <opencv2/opencv.hpp>
 
@@ -78,6 +79,12 @@ public:
 
     // 加密
     static QString BCryptographicHash(QString str);
+
+    // QImage 转 Base64
+    static QString convertImageToBase64(const QImage& img);
+
+    // Base64 转 QImage
+    static QImage convertBase64ToImage(const QString& str);
 
     //------------------------------------------------------------------------------
 

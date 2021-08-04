@@ -4,7 +4,7 @@
 *
 * function:  psf(point spread function)点扩散函数计算
 *
-* author:    sjt&ztb
+* author:    sjt&ztb（Steven）
 *
 * date:      2021.1.26
 *
@@ -22,7 +22,6 @@
 
 class Psf {
 public:
-	float strehl;
 	cv::Mat psf;
 	cv::Mat energy;
 	cv::Mat mtf;
@@ -62,13 +61,6 @@ private:
 	 * @return
 	 */
 	void calcPsf(const cv::Mat& fitting_rem_zer);
-
-	/**
-	 * @brief StrehlRatio
-	 * @param 
-	 * @param 
-	 */
-	void StrehlRatio();
 
 	/**
 	 * @brief 计算能量集中度

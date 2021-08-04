@@ -215,6 +215,28 @@ QString GlobalFun::BCryptographicHash(QString str)
     return QString::fromStdWString(wString).toUtf8();
 }
 
+QString GlobalFun::convertImageToBase64(const QImage& img)
+{
+    QByteArray array;
+    QBuffer buffer(&array);
+    buffer.open(QIODevice::WriteOnly);
+
+    img.save(&buffer, "PNG");
+    QByteArray array64 = array.toBase64();
+    QString str = QString::fromLatin1(array64);
+
+    return str;
+}
+
+QImage GlobalFun::convertBase64ToImage(const QString& str)
+{
+    QImage img;
+    QByteArray array = str.toLatin1();
+    img.loadFromData(QByteArray::fromBase64(array));
+
+    return img;
+}
+
 //------------------------------------------------------------------------------
 
 void GlobalFun::changeColorToRed(QImage& image)

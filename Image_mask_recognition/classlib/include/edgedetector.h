@@ -4,7 +4,7 @@
 *
 * function:  对相位图进行轮廓检测
 *
-* author:    sjt&ztb
+* author:    sjt&ztb（Steven）
 *
 * date:      2021.1.26
 *

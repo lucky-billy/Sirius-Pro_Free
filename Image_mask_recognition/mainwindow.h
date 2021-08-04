@@ -147,5 +147,6 @@ private:
     cv::Mat m_mask;                             // 相位计算 基础 mask
     int calc_type;                              // 计算类型 1 - 加载   2 - 加   3 - 减   4 - 无
     double asc_res;                             // 相位计算 像素值 无需分析asc文件的情况下使用
+    double m_px_1mm;
 };
 #endif // MAINWINDOW_H

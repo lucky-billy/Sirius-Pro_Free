@@ -57,7 +57,7 @@ void MainWindow::initData()
                    << "PV(xy)" << "RMS(xy)" << "GRMS" << "Zernike_Tilt" << "Power" << "Power_X" << "Power_Y"
                    << "Zernike_Ast" << "Zernike_Coma" << "Zernike_SA" << "RMS(Power)" << "RMS(Ast)" << "RMS(Coma)" << "RMS(SA)"
                    << "Seidel_Tilt" << "Seidel_Tilt_Clock" << "Seidel_Focus" << "Seidel_Ast" << "Seidel_Ast_Clock"
-                   << "Seidel_Coma" << "Seidel_Coma_Clock" << "Seidel_SA" << "SAG" << "IRR" << "RSI" << "RMSt"
+                   << "Seidel_Coma" << "Seidel_Coma_Clock" << "Seidel_SA" << "SAG(N)" << QStringLiteral("IRR(ΔN)") << "RSI" << "RMSt"
                    << "RMSa" << "RMSi" << "TTV" << "Fringes" << "Strehl_Ratio" << "Parallel_Theta"
                    << "Aperture" << "SizeX" << "SizeY" << "Concavity" << "Curvature_Radius"
                    << "Z1" << "Z2" << "Z3" << "Z4" << "Z5" << "Z6" << "Z7" << "Z8" << "Z9";
@@ -83,8 +83,6 @@ void MainWindow::initData()
     loadConfig();
     changeLanguage(GlobalValue::lgn_tp);
 
-    calcConvertMatrix();    // 转换矩阵为常量
-
     CONFIG_PARAMS config;
     m_algorithm = new AlgorithmMain(config);
 
@@ -95,6 +93,8 @@ void MainWindow::initData()
 
     calc_type = 7;
     asc_res = 1;
+
+    m_px_1mm = 0;
 
     //------------------------------------------------------------------------------
 
@@ -133,7 +133,7 @@ void MainWindow::initData()
 void MainWindow::initView()
 {
     qDebug() << "initView !";
-    setWindowTitle("Sirius Pro Free 3.1.2");
+    setWindowTitle("Sirius Pro Free 3.1.7");
     setMinimumSize(1200, 700);
 
     QFont font;
@@ -1725,6 +1725,7 @@ void MainWindow::loadXYZ(QString path)
     list = line.split(" ", QString::SkipEmptyParts);
 
     double camerares = list.at(6).toDouble();
+    m_px_1mm = camerares;
     updateGraphItemSize(camerares);
 
     line = in.readLine();
@@ -1925,6 +1926,7 @@ void MainWindow::loadASC(QString path)
     double intfscalefactor = list.at(1).toDouble();
     int obliquityfactor = list.at(4).toInt();
     double camerares = list.at(6).toDouble();
+    m_px_1mm = camerares;
     updateGraphItemSize(camerares);
 
     line = in.readLine();
@@ -2045,150 +2047,282 @@ void MainWindow::saveSirius(QString path)
 {
     // Sirius 文件格式：标头 + 原始图片（数量根据算法） + 无相位图
 
-    QFile file(path);
-    if ( !file.open(QIODevice :: WriteOnly | QIODevice :: Truncate) ) {
-        return;
-    }
+    std::thread th([=] {
+        std::vector<cv::Mat> matlist_clo;
 
-    QTextStream out(&file);
-
-    writeHead(out, 3);
-
-    // intensity data matrix
-    out << "#"
-        << "\n";
-
-    int count = 0;
-    for ( size_t i = 0; i < m_matList.size(); ++i )
-    {
-        cv::Mat mat = m_matList.at(i).clone();
-        unsigned char *data = mat.data;
-
-        for ( int c = 0; c < mat.cols; ++c )
-        {
-            for ( int r = 0; r < mat.rows; ++r )
+        if ( m_matList.size() > 0 && !m_matList.at(0).empty() ) {
+            for ( size_t i = 0; i < m_matList.size(); ++i )
             {
-                out << *data << " ";
-                data += mat.type() == CV_8UC4 ? 4 : (mat.type() == CV_8UC3 ? 3 : 1);
-
-                count++;
-                if ( count == 10 ) {
-                    out << "\n";
-                    count = 0;
-                }
+                matlist_clo.push_back(m_matList.at(i).clone());
             }
         }
-    }
 
-    if ( count != 0 ) {
-        out << "\n";
-    }
+        if ( true )
+        {
+            QFile file(path);
+            if ( !file.open(QIODevice :: WriteOnly | QIODevice :: Truncate) ) {
+                return;
+            }
 
-    // end
-    out << "#"
-        << "\n";
+            QTextStream out(&file);
 
-    file.close();
+            writeHead(out, 3);
 
-    GlobalFun::showMessageBox(2, "Save Sirius file successfully !");
+            // intensity data matrix
+            out << "#"
+                << "\n";
+
+            for ( size_t i = 0; i < matlist_clo.size(); ++i )
+            {
+                QImage image = GlobalFun::convertMatToQImage(matlist_clo.at(i));
+                QString str = GlobalFun::convertImageToBase64(image);
+
+                out << str
+                    << "\n";
+            }
+
+            file.close();
+        }
+
+        else
+        {
+            QByteArray array;
+            QTextStream out(&array);
+
+            writeHead(out, 3);
+
+            // intensity data matrix
+            out << "#"
+                << "\n";
+
+            int count = 0;
+            for ( size_t i = 0; i < matlist_clo.size(); ++i )
+            {
+                cv::Mat mat = matlist_clo.at(i).clone();
+                unsigned char *data = mat.data;
+
+                for ( int c = 0; c < mat.cols; ++c )
+                {
+                    for ( int r = 0; r < mat.rows; ++r )
+                    {
+                        out << *data << " ";
+                        data += mat.type() == CV_8UC4 ? 4 : (mat.type() == CV_8UC3 ? 3 : 1);
+
+                        count++;
+                        if ( count == 10 ) {
+                            out << "\n";
+                            count = 0;
+                        }
+                    }
+                }
+            }
+
+            if ( count != 0 ) {
+                out << "\n";
+            }
+
+            // end
+            out << "#"
+                << "\n";
+
+            // Compress - compressionLevel -1 space time 7.4s and compressionLevel 9 space time 13.14s
+            qDebug() << "Size before compress: " << array.size();
+            array = qCompress(array, -1);
+            qDebug() << "Size after compress: " << array.size();
+
+            // Save data
+            QFile file(path);
+            if ( !file.open(QIODevice :: WriteOnly | QIODevice :: Truncate) ) {
+                return;
+            }
+
+            file.write(array);
+            file.close();
+        }
+    });
+    th.detach();
 }
 
 void MainWindow::loadSirius(QString path)
 {
     // Sirius 文件数据用途：强度图在场景中显示，无相位图
 
-    QFile file(path);
-    if ( !file.open(QIODevice :: ReadOnly) ) {
-        loadFileState = false;
-        return;
-    }
-
-    QTextStream in(&file);
-
-    QString line;
-    QStringList list;
-
-    line = in.readLine();   // Format 3
-    line = in.readLine();
-    list = line.split(" ", QString::SkipEmptyParts);
-
-    int psi = list.at(0).toInt();
-
-    if ( psi != GlobalValue::par_psi ) {
-        auto str = [](int psi)->QString {
-            switch ( psi )
-            {
-            case 1: return "PSI_METHOD_BUCKETB5A_H_P";
-            case 3: return "PSI_METHOD_BUCKET9A_CS_P";
-            case 5: return "PSI_METHOD_OPT_SEQUENCE";
-            default: return "";
-            }
-        };
-        GlobalFun::showMessageBox(3, QString("The PSI algorithm read from the file is different from the setting. "
-                                             "%1 is in the file and "
-                                             "%2 is in the setting.").arg(str(psi)).arg(str(GlobalValue::par_psi)));
-        loadFileState = false;
-        return;
-    }
-
-    double camerares = list.at(1).toDouble();
-    int intenswidth = list.at(2).toInt();
-    int intensheight = list.at(3).toInt();
-    updateGraphItemSize(camerares);
-
-    line = in.readLine();   // date
-    line = in.readLine();   // #
-
-    m_matList.clear();
-    int nbuckets = 0;
-    if ( psi == 1 ) {
-        nbuckets = 5;
-    } else if ( psi == 3 || psi == 5 ) {
-        nbuckets = 9;
-    }
-
-    int intenslines = int(ceil(double(intenswidth * intensheight * nbuckets) / 10.0));
-    int *intensdata = new int[intenswidth * intensheight * nbuckets];
-    int *intensdata_t = intensdata;
-
-    for ( int i = 0; i < intenslines; ++i )
+    if ( true )
     {
+        QFile file(path);
+        if ( !file.open(QIODevice :: ReadOnly) ) {
+            loadFileState = false;
+            return;
+        }
+
+        QTextStream in(&file);
+
+        QString line;
+        QStringList list;
+
+        line = in.readLine();   // Format 3
         line = in.readLine();
         list = line.split(" ", QString::SkipEmptyParts);
 
-        for ( int j = 0; j < list.size(); ++j )
-        {
-            int value = list.at(j).toInt();
-            *intensdata = value;
-            intensdata++;
+        int psi = list.at(0).toInt();
+
+        if ( psi != GlobalValue::par_psi ) {
+            auto str = [](int psi)->QString {
+                switch ( psi )
+                {
+                case 1: return "PSI_METHOD_BUCKETB5A_H_P";
+                case 3: return "PSI_METHOD_BUCKET9A_CS_P";
+                case 5: return "PSI_METHOD_OPT_SEQUENCE";
+                case 6: return "PSI_METHOD_9A_AIA";
+                case 7: return "PSI_METHOD_WAVELNTUNING";
+                default: return "";
+                }
+            };
+            GlobalFun::showMessageBox(3, QString("The PSI algorithm read from the file is different from the setting. "
+                                                 "%1 is in the file and "
+                                                 "%2 is in the setting.").arg(str(psi)).arg(str(GlobalValue::par_psi)));
+            loadFileState = false;
+            return;
         }
+
+        double camerares = list.at(1).toDouble();
+        m_px_1mm = camerares;
+        updateGraphItemSize(camerares);
+
+        line = in.readLine();   // date
+        line = in.readLine();   // #
+
+        m_matList.clear();
+        int nbuckets = 9;
+        if ( psi == 1 || psi == 7 ) {
+            nbuckets = 5;
+        } else if ( psi == 3 || psi == 5 || psi == 6 ) {
+            nbuckets = 9;
+        }
+
+        for ( int i = 0; i < nbuckets; ++i )
+        {
+            line = in.readLine();
+            QByteArray array = line.toLatin1();
+
+            QImage image = GlobalFun::convertBase64ToImage(array);
+            cv::Mat mat = GlobalFun::convertQImageToMat(image);
+            m_matList.push_back(mat);
+        }
+
+        file.close();
+
+        isSirius = true;
+        loadFileState = true;
+        startCalculation();
     }
 
-    for ( int i = 0; i < nbuckets; ++i )
+    else
     {
-        cv::Mat mat(intensheight, intenswidth, CV_8UC4, intensdata_t + (intensheight * intenswidth) * i);
+        // Load data
+        QFile file(path);
+        if ( !file.open(QIODevice :: ReadOnly) ) {
+            loadFileState = false;
+            return;
+        }
 
-        unsigned char *data = mat.data;
-        for ( int i = 0; i < mat.cols; ++i )
+        QByteArray array = file.readAll();
+        file.close();
+
+        // Uncompress
+        qDebug() << "Size before unCompress: " << array.size();
+        array = qUncompress(array);
+        qDebug() << "Size after unCompress: " << array.size();
+
+        QTextStream in(&array);
+
+        QString line;
+        QStringList list;
+
+        line = in.readLine();   // Format 3
+        line = in.readLine();
+        list = line.split(" ", QString::SkipEmptyParts);
+
+        int psi = list.at(0).toInt();
+
+        if ( psi != GlobalValue::par_psi ) {
+            auto str = [](int psi)->QString {
+                switch ( psi )
+                {
+                case 1: return "PSI_METHOD_BUCKETB5A_H_P";
+                case 3: return "PSI_METHOD_BUCKET9A_CS_P";
+                case 5: return "PSI_METHOD_OPT_SEQUENCE";
+                case 6: return "PSI_METHOD_9A_AIA";
+                case 7: return "PSI_METHOD_WAVELNTUNING";
+                default: return "";
+                }
+            };
+            GlobalFun::showMessageBox(3, QString("The PSI algorithm read from the file is different from the setting. "
+                                                 "%1 is in the file and "
+                                                 "%2 is in the setting.").arg(str(psi)).arg(str(GlobalValue::par_psi)));
+            loadFileState = false;
+            return;
+        }
+
+        double camerares = list.at(1).toDouble();
+        int intenswidth = list.at(2).toInt();
+        int intensheight = list.at(3).toInt();
+        m_px_1mm = camerares;
+        updateGraphItemSize(camerares);
+
+        line = in.readLine();   // date
+        line = in.readLine();   // #
+
+        m_matList.clear();
+        int nbuckets = 9;
+        if ( psi == 1 || psi == 7 ) {
+            nbuckets = 5;
+        } else if ( psi == 3 || psi == 5 || psi == 6 ) {
+            nbuckets = 9;
+        }
+
+        int intenslines = int(ceil(double(intenswidth * intensheight * nbuckets) / 10.0));
+        int *intensdata = new int[intenswidth * intensheight * nbuckets];
+        int *intensdata_t = intensdata;
+
+        for ( int i = 0; i < intenslines; ++i )
         {
-            for ( int j = 0; j < mat.rows; ++j )
+            line = in.readLine();
+            list = line.split(" ", QString::SkipEmptyParts);
+
+            for ( int j = 0; j < list.size(); ++j )
             {
-                *(data + 1) = *data;
-                *(data + 2) = *data;
-                *(data + 3) = 255;
-                data += 4;
+                int value = list.at(j).toInt();
+                *intensdata = value;
+                intensdata++;
             }
         }
 
-        m_matList.push_back(mat.clone());
+        for ( int i = 0; i < nbuckets; ++i )
+        {
+            cv::Mat mat(intensheight, intenswidth, CV_8UC4, intensdata_t + (intensheight * intenswidth) * i);
+
+            unsigned char *data = mat.data;
+            for ( int i = 0; i < mat.cols; ++i )
+            {
+                for ( int j = 0; j < mat.rows; ++j )
+                {
+                    *(data + 1) = *data;
+                    *(data + 2) = *data;
+                    *(data + 3) = 255;
+                    data += 4;
+                }
+            }
+
+            m_matList.push_back(mat.clone());
+        }
+
+        delete []intensdata_t;
+
+        isSirius = true;
+        loadFileState = true;
+        startCalculation();
     }
-
-    delete []intensdata_t;
-    file.close();
-
-    isSirius = true;
-    loadFileState = true;
-    startCalculation();
 }
 
 //******************************************************************************************************************
@@ -2731,8 +2865,8 @@ void MainWindow::createMenuDialog(int type)
 
         for ( int i = 0; i < ui->result_table->rowCount(); ++i )
         {
-            if ( ui->result_table->item(i, 0)->text() == "SAG" ||
-                 ui->result_table->item(i, 0)->text() == "IRR" ||
+            if ( ui->result_table->item(i, 0)->text() == "SAG(N)" ||
+                 ui->result_table->item(i, 0)->text() == QStringLiteral("IRR(ΔN)") ||
                  ui->result_table->item(i, 0)->text() == "RSI" ||
                  ui->result_table->item(i, 0)->text() == "RMSt" ||
                  ui->result_table->item(i, 0)->text() == "RMSa" ||
@@ -2780,8 +2914,8 @@ void MainWindow::createMenuDialog(int type)
                      ui->result_table->item(i, 0)->text() == "Seidel_Ast_Clock" ||
                      ui->result_table->item(i, 0)->text() == "Seidel_Coma_Clock" ) {
                     ui->result_table->item(i, 2)->setText("deg");
-                } else if ( ui->result_table->item(i, 0)->text() == "SAG" ||
-                            ui->result_table->item(i, 0)->text() == "IRR" ||
+                } else if ( ui->result_table->item(i, 0)->text() == "SAG(N)" ||
+                            ui->result_table->item(i, 0)->text() == QStringLiteral("IRR(ΔN)") ||
                             ui->result_table->item(i, 0)->text() == "RSI" ||
                             ui->result_table->item(i, 0)->text() == "RMSt" ||
                             ui->result_table->item(i, 0)->text() == "RMSa" ||
@@ -2890,6 +3024,8 @@ void MainWindow::startCalculation()
     modifyConfig();
     m_log.write(GlobalFun::getCurrentTime(2) + " - Modify config finished");
 
+    m_algorithm->configParams.isASCFile = !isSirius;
+
     // init mask
     m_manualMask = cv::Mat();
     m_rect = cv::Rect();
@@ -2944,15 +3080,13 @@ void MainWindow::startCalculation()
 void MainWindow::modifyConfig()
 {
     m_algorithm->configParams.debugGrade = 0;
-    m_algorithm->configParams.isPhaseAverage = false;
-    m_algorithm->configParams.isASCFile = !isSirius;
+    m_algorithm->configParams.isASCFile = false;
     m_algorithm->configParams.checkFlag = GlobalValue::par_psi == 5;
     m_algorithm->configParams.removeErrorFlag = false;
     m_algorithm->configParams.removeResidualFlag = GlobalValue::par_rm_rsl == 1;
     m_algorithm->configParams.isSingleHole = true;
-    m_algorithm->configParams.isFillSpikes = true;
     m_algorithm->configParams.zernikeTerm = 37;
-    m_algorithm->configParams.residuesNumThresh = GlobalValue::com_rnt;
+    m_algorithm->configParams.unwrapParams.residuesNumThresh = GlobalValue::com_rnt;
     m_algorithm->configParams.scaleFactor = GlobalValue::par_i_s_f;
     m_algorithm->configParams.highPassFilterCoef = GlobalValue::par_hp_fc;
     m_algorithm->configParams.holeType = HOLE_TYPE_CG;
@@ -2966,14 +3100,38 @@ void MainWindow::modifyConfig()
         m_algorithm->configParams.edge_erode_r = 0;
     }
 
-    m_algorithm->configParams.checkThr.phaseShiftThr = 10;
-    m_algorithm->configParams.checkThr.stdPhaseHistThr = 0.025f;
     m_algorithm->configParams.checkThr.resPvThr = 0;
     m_algorithm->configParams.checkThr.resRmsThr = 0;
 
     m_algorithm->configParams.psiMethod = (PSI_METHOD)GlobalValue::par_psi;
-    m_algorithm->configParams.unwrapMethod = (UNWRAP_METHOD)GlobalValue::par_unw;
-    m_algorithm->configParams.filterParams.filterType = (FILTER_TYPE)GlobalValue::par_flt;
+    m_algorithm->configParams.unwrapParams.unwrapMethod = (UNWRAP_METHOD)GlobalValue::par_unw;
+
+    switch(GlobalValue::par_flt)
+    {
+    case 0: {
+        m_algorithm->configParams.filterParams.filterType = FILTER_TYPE::FILTER_TYPE_NONE;
+    } break;
+    case 1: {
+        m_algorithm->configParams.filterParams.filterType = FILTER_TYPE::FILTER_TYPE_LOW_PASS;
+        m_algorithm->configParams.filterParams.filterMethod = FILTER_METHOD::FILTER_METHOD_MEDIAN;
+    } break;
+    case 2: {
+        m_algorithm->configParams.filterParams.filterType = FILTER_TYPE::FILTER_TYPE_LOW_PASS;
+        m_algorithm->configParams.filterParams.filterMethod = FILTER_METHOD::FILTER_METHOD_FFT_FIXED;
+    } break;
+    case 3: {
+        m_algorithm->configParams.filterParams.filterType = FILTER_TYPE::FILTER_TYPE_HIGH_PASS;
+        m_algorithm->configParams.filterParams.filterMethod = FILTER_METHOD::FILTER_METHOD_FFT_FIXED;
+    } break;
+    case 4: {
+        m_algorithm->configParams.filterParams.filterType = FILTER_TYPE::FILTER_TYPE_BAND_PASS;
+        m_algorithm->configParams.filterParams.filterMethod = FILTER_METHOD::FILTER_METHOD_FFT_FIXED;
+    } break;
+    default: {
+        m_algorithm->configParams.filterParams.filterType = FILTER_TYPE::FILTER_TYPE_NONE;
+    } break;
+    }
+
     m_algorithm->configParams.filterParams.filterWindowSize = GlobalValue::par_fws;
     m_algorithm->configParams.filterParams.removeSpikesParams.rsFlag = GlobalValue::par_rm_spk == 1;
     m_algorithm->configParams.filterParams.removeSpikesParams.removeSize = GlobalValue::par_srs;
@@ -2984,8 +3142,10 @@ void MainWindow::modifyConfig()
         if ( m_scene->getGraphicsItemList().size() == 1 &&
              m_scene->getGraphicsItemList().at(0)->getType() == BGraphicsItem::ItemType::Circle ) {
             m_algorithm->configParams.zernikeMethod = ZERNIKE_METHOD_CIRCLE;
+            m_algorithm->configParams.calcResultInputParams.isCircle = true;
         } else {
             m_algorithm->configParams.zernikeMethod = ZERNIKE_METHOD_ORTHO;
+            m_algorithm->configParams.calcResultInputParams.isCircle = false;
         }
 
         m_algorithm->configParams.edgeDetecParams.isUseScale = false;
@@ -2996,8 +3156,10 @@ void MainWindow::modifyConfig()
 
         if ( item->getAutoType() == BGraphicsItem::AutoType::Auto_Circle ) {
             m_algorithm->configParams.zernikeMethod = ZERNIKE_METHOD_CIRCLE;
+            m_algorithm->configParams.calcResultInputParams.isCircle = true;
         } else {
             m_algorithm->configParams.zernikeMethod = ZERNIKE_METHOD_ORTHO;
+            m_algorithm->configParams.calcResultInputParams.isCircle = false;
         }
 
         m_algorithm->configParams.edgeDetecParams.isUseScale = item->getIfUseScale();
@@ -3058,14 +3220,14 @@ void MainWindow::modifyConfig()
     m_algorithm->configParams.removeZernikeFlags.comaFlag = GlobalValue::zer_coma == 1;
     m_algorithm->configParams.removeZernikeFlags.sphericalFlag = GlobalValue::zer_sph == 1;
 
-    m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.pvFlag = m_stateList.value("PV") == 1;
+    m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.pvFlag = true;
     m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.pvxFlag = m_stateList.value("PV(x)") == 1;
     m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.pvyFlag = m_stateList.value("PV(y)") == 1;
     m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.pvxyFlag = m_stateList.value("PV(xy)") == 1;
     m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.pvrFlag = m_stateList.value("PVr") == 1;
     m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.pvresFlag = m_stateList.value("PV(res)") == 1;
 
-    m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.rmsFlag = m_stateList.value("RMS") == 1;
+    m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.rmsFlag = true;
     m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.rmsxFlag = m_stateList.value("RMS(x)") == 1;
     m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.rmsyFlag = m_stateList.value("RMS(y)") == 1;
     m_algorithm->configParams.calcTotalResultFlags.pvRmsResultFlags.rmsxyFlag = m_stateList.value("RMS(xy)") == 1;
@@ -3093,8 +3255,8 @@ void MainWindow::modifyConfig()
     m_algorithm->configParams.calcTotalResultFlags.zerSeiResultFlags.rmsComaFlag = m_stateList.value("RMS(Coma)") == 1;
     m_algorithm->configParams.calcTotalResultFlags.zerSeiResultFlags.rmsSaFlag = m_stateList.value("RMS(SA)") == 1;
 
-    m_algorithm->configParams.calcTotalResultFlags.isoResultFlags.sagFlag = m_stateList.value("SAG") == 1;
-    m_algorithm->configParams.calcTotalResultFlags.isoResultFlags.irrFlag = m_stateList.value("IRR") == 1;
+    m_algorithm->configParams.calcTotalResultFlags.isoResultFlags.sagFlag = m_stateList.value("SAG(N)") == 1;
+    m_algorithm->configParams.calcTotalResultFlags.isoResultFlags.irrFlag = m_stateList.value(QStringLiteral("IRR(ΔN)")) == 1;
     m_algorithm->configParams.calcTotalResultFlags.isoResultFlags.rsiFlag = m_stateList.value("RSI") == 1;
     m_algorithm->configParams.calcTotalResultFlags.isoResultFlags.rmstFlag = m_stateList.value("RMSt") == 1;
     m_algorithm->configParams.calcTotalResultFlags.isoResultFlags.rmsaFlag = m_stateList.value("RMSa") == 1;
@@ -3789,10 +3951,57 @@ void MainWindow::updateZernikeData(float dec, int div, bool isOK)
             return;
         }
 
-        for ( int i = 0; i < ui->zernike_table->rowCount(); ++i )
+        switch (ui->zernike_table->rowCount())
         {
-            float value = floor((m_algorithm->zernikeCoef_37.at<float>(i, 0) + dec) * div) / div;
-            ui->zernike_table->item(i, 1)->setText( QString::number(value) );
+        case 4: {
+            for ( int i = 0; i < ui->zernike_table->rowCount(); ++i )
+            {
+                float value = floor((m_algorithm->zernikeCoef_4.at<float>(i, 0) + dec) * div) / div;
+                ui->zernike_table->item(i, 1)->setText( QString::number(value) );
+            }
+        } break;
+        case 9: {
+            for ( int i = 0; i < ui->zernike_table->rowCount(); ++i )
+            {
+                float value = floor((m_algorithm->zernikeCoef_9.at<float>(i, 0) + dec) * div) / div;
+                ui->zernike_table->item(i, 1)->setText( QString::number(value) );
+            }
+        } break;
+        case 16: {
+            for ( int i = 0; i < ui->zernike_table->rowCount(); ++i )
+            {
+                float value = floor((m_algorithm->zernikeCoef_16.at<float>(i, 0) + dec) * div) / div;
+                ui->zernike_table->item(i, 1)->setText( QString::number(value) );
+            }
+        } break;
+        case 25: {
+            for ( int i = 0; i < ui->zernike_table->rowCount(); ++i )
+            {
+                float value = floor((m_algorithm->zernikeCoef_25.at<float>(i, 0) + dec) * div) / div;
+                ui->zernike_table->item(i, 1)->setText( QString::number(value) );
+            }
+        } break;
+        case 36: {
+            for ( int i = 0; i < ui->zernike_table->rowCount(); ++i )
+            {
+                float value = floor((m_algorithm->zernikeCoef_36.at<float>(i, 0) + dec) * div) / div;
+                ui->zernike_table->item(i, 1)->setText( QString::number(value) );
+            }
+        } break;
+        case 37: {
+            for ( int i = 0; i < ui->zernike_table->rowCount(); ++i )
+            {
+                float value = floor((m_algorithm->zernikeCoef_37.at<float>(i, 0) + dec) * div) / div;
+                ui->zernike_table->item(i, 1)->setText( QString::number(value) );
+            }
+        } break;
+        default: {
+            for ( int i = 0; i < ui->zernike_table->rowCount(); ++i )
+            {
+                float value = floor((m_algorithm->zernikeCoef_37.at<float>(i, 0) + dec) * div) / div;
+                ui->zernike_table->item(i, 1)->setText( QString::number(value) );
+            }
+        } break;
         }
     } else {
         for ( int i = 0; i < ui->zernike_table->rowCount(); ++i )
